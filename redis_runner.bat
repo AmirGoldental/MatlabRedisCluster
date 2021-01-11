@@ -7,14 +7,15 @@ if "%1" == "" goto fill_params_path
 set params_path=%1
 :fill_params_path
 
-echo load parameters from %params_path%
+echo Load parameters from %params_path%
 for /f "delims=" %%x in (%params_path%) do set %%x
 
-@REM check that redis-cli and redis-server exists 
+echo Check that redis exists 
 if not exist %redis_cli_path% (echo %redis_cli_path% does not exists) 
 if not exist %redis_server_path% (echo %redis_server_path% does not exists) 
 
-%redis_server_path%
+echo Write host conf file at %redis_host_file%
+echo redishost=%hostname% > %redis_host_file%
+echo redisport=6379 >> %redis_host_file%
 
-@REM %params_path% 
-@REM echo %redis_cli_path%
+%redis_server_path% %redis_conf_path%
