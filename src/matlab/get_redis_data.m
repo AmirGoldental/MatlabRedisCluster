@@ -19,9 +19,10 @@ if any(strcmpi(varargin, 'mock'))
     
     worker_id = [1:4]';
     server_name = {'comp1'; 'comp1'; 'comp2'; 'comp2'};
+    type = {'matlab'; 'matlab'; 'python'; 'exec'};
     worker_task = {'None'; jsonencode(ongoing_tasks(1,:)); jsonencode(ongoing_tasks(2,:)); jsonencode(ongoing_tasks(3,:))};
     server_started_on = {'13_21_56__25_07_2019'; '14_22_56__25_07_2019'; '15_23_56__25_07_2019'; '15_23_56__25_07_2019'};
-    workers = table(worker_id, server_name, server_started_on, worker_task);
+    workers = table(worker_id, type, server_name, server_started_on, worker_task);
     
     cluster_status.workers = workers;
     cluster_status.waiting_tasks = waiting_tasks;
