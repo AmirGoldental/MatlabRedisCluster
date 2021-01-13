@@ -1,2 +1,2 @@
-redishost=iloveyou2 
-redisport=6379 
+redis_host=iloveyou2 
+redis_port=6379 
