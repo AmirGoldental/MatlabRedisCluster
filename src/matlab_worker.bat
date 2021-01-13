@@ -14,64 +14,78 @@ if "%1" == "" goto fill_params_path
 set params_path=%1
 :fill_params_path
 
-echo load parameters from %params_path%
+call :logger INFO load parameters from %params_path%
 for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
 
-echo check that redis exists 
+call :logger INFO check that redis exists 
 if not exist %redis_cli_path% (echo %redis_cli_path% does not exists & exit /b) 
 if not exist %redis_server_path% (echo %redis_server_path% does not exists & exit /b) 
 
-echo load host conf file at %redis_host_file%
+call :logger INFO load host conf file at %redis_host_file%
 for /f "tokens=1*delims==" %%x in (%redis_host_file%) do call :run_and_set %%x %%y
 
 call :send_redis ping
 if "%res%"=="failed" (
-    echo failed pinging redis %redis_cli_path% -h %redishost% -p %redisport% -a %redis_password% -n %redis_db%
+    call :logger ERROR failed pinging redis %redis_cli_path% -h %redishost% -p %redisport% -a %redis_password% -n %redis_db%
     exit /b
 ) else (
-    echo redis ping ponged
+    call :logger INFO redis ping ponged
 ) 
 
 call :send_redis incr workers:ind
 set wid=%res%
 set matlab_name=mrr_worker_%wid%
-echo got worker id: %wid%
+call :logger INFO got worker id: %wid%
 
-call :send_redis set worker:%wid%:status on
-call :start_matlab %matlab_name%
-set matlab_pid=%res%
+call :send_redis set worker:!wid!:status on
+call :send_redis set worker:!wid!:host !hostname!
+call :start_matlab !matlab_name!
+set matlab_pid=!res!
 
 :main_loop
-    :: get my status
-    call :send_redis get worker:!wid!:status
-    set current_redis_status=!res!
-
+    @timeout %worker_loop_wait_seconds% >nul
     :: check if matlab is alive
     call :is_pid_alive !matlab_pid!
     set current_matlab_status=!res!
 
-    echo current matlab !matlab_name! !matlab_pid! m:!current_matlab_status! r:!current_redis_status!
+    :: check redis status
+    call :send_redis get worker:!wid!:status
+    if "!res!"=="failed" (
+        call :logger WARNING redis failed with command !redis_cmd!
+        call :send_redis ping
+        if "!res!"=="failed" (
+            call :logger WARNING failed pinging redis, waiting
+        ) else (
+            call :logger INFO redis ping ponged recover worker status
+            call :send_redis set worker:!wid!:status !current_matlab_status!
+            call :send_redis set worker:!wid!:host !hostname!
+        ) 
+        goto main_loop
+    )
+    set current_redis_status=!res!
+
+    call :logger VERBOSE matlab_name:!matlab_name! pid:!matlab_pid! matlab_status:!current_matlab_status! redis_status:!current_redis_status!
 
     :: main logic
     if "!current_redis_status!"=="on" if "!current_matlab_status!"=="off" (
+        call :logger INFO start matlab !matlab_name!
         call :start_matlab !matlab_name!
         set matlab_pid=!res!
     )
 
     if "!current_redis_status!"=="off" if "!current_matlab_status!"=="on" (
+        call :logger INFO kill matlab !matlab_name! !matlab_pid!
         taskkill /PID !matlab_pid!
     )
 
     if "!current_redis_status!"=="restart" (
+        call :logger INFO restart matlab !matlab_name!
         if "!current_matlab_status!"=="on" (
             taskkill /PID !matlab_pid!
         )
         call :send_redis set worker:!wid!:status on
     )
 
-    timeout 10
-
-    @REM goto exit_loop
 goto main_loop
 
 :exit_loop
@@ -79,6 +93,11 @@ call :send_redis set handler:%hostname%:alive 0
 exit /b
 
 :: =================== helper functions ========================
+:logger
+for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
+echo [%1] %date%T%time% %ALL_BUT_FIRST%
+exit /b
+
 :get_pid
 @REM for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /NH /FI "WINDOWTITLE eq *%1"`) do (set "res=%%f")
 for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /nh /v /fi "IMAGENAME eq matlab.exe" ^| find "%1"`) do (set "res=%%f")
@@ -97,7 +116,7 @@ exit /b
 
 :start_matlab
 @REM echo start matlab process at %matlab_path%
-start "%1" "%matlab_path%" -sd "%CD%" -batch "%matlab_runner_script%"
+start "%1" "%matlab_path%" -sd "%matlab_workdir%" -batch "%matlab_runner_script%"
 call :get_pid %1
 exit /b
 
@@ -111,8 +130,7 @@ exit /b
 
 :send_redis
 set res=failed
-FOR /F "tokens=*" %%g IN ('%redis_cli_path% -h %redis_host% -p %redis_port% -a %redis_password% -n %redis_db% %*') do (
-    set res=%%g
-)
+set "redis_cmd=%redis_cli_path% -h %redis_host% -p %redis_port% -a %redis_password% -n %redis_db%"
+for /f "tokens=*" %%g in ('!redis_cmd! %*') do (set res=%%g)
 exit /b
 
