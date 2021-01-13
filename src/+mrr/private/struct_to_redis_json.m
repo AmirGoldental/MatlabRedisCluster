@@ -1,7 +1,7 @@
 function str_cleaned = struct_to_redis_json(struct)
 
     str = jsonencode(struct);
-    
+    str(str==newline) = ' ';
     special = '"';
     str_cleaned = '';
     for l = str

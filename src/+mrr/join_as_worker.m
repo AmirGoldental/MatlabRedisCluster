@@ -34,10 +34,10 @@ end
         catch err
             redis_connection.cmd(['SPOP ongoing_matlab_tasks ' struct_to_redis_json(task) ]);
             task.failed_on = datetime();
-            task.error_json = struct_to_redis_json(err);
+            task.error = err;
             redis_connection.cmd(['SADD failed_matlab_tasks ' struct_to_redis_json(task) ]);
             disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
         end
- end
+    end
 end
 

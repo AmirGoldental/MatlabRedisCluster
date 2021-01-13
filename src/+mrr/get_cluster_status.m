@@ -27,5 +27,21 @@ if any(strcmpi(varargin, 'mock'))
     cluster_status.workers = workers;
     cluster_status.waiting_tasks = waiting_tasks;
 else
-    error('Not yet implemented')
+    redis_connection = mrr.RedisConnection(fullfile(fileparts(mfilename('fullpath')),'..'));
+    pending_matlab_tasks = redis_output_to_table(redis_connection.cmd('LRANGE pending_matlab_tasks 0 -1'))
+    ongoing_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS ongoing_matlab_tasks'))
+    finished_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS finished_matlab_tasks'))
+    failed_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS failed_matlab_tasks'))
+    
+end
+end
+function output_table = redis_output_to_table(input_str)
+    output_table = table();
+    if isempty(input_str)
+        return
+    end
+    input_cell = cellfun(@(x) jsondecode(x), split(input_str, newline));
+    for field = fieldnames(input_cell(1))'
+        output_table.(field{1}) = arrayfun(@(x) x.(field{1}), input_cell, 'UniformOutput', false);
+    end
 end
