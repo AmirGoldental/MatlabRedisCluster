@@ -41,41 +41,52 @@ call :send_redis set worker:%wid%:status on
 call :start_matlab %matlab_name%
 set matlab_pid=%res%
 
-echo check alive
-call :is_pid_alive %matlab_pid%
-echo is pid alive: %res%
-call :is_pid_alive 100
-echo is pid alive: %res%
-
 :main_loop
+    :: get my status
+    call :send_redis get worker:!wid!:status
+    set current_redis_status=!res!
 
-:: get my status
-call :send_redis get worker:%wid%:status
-set current_redis_status=%res%
+    :: check if matlab is alive
+    call :is_pid_alive !matlab_pid!
+    set current_matlab_status=!res!
 
-:: check if matlab is alive
-call :is_pid_alive %matlab_pid%
-set current_matlab_status=%res%
+    echo current matlab !matlab_name! !matlab_pid! m:!current_matlab_status! r:!current_redis_status!
 
-:: main logic
-if "%current_redis_status%"=="on" if "%current_matlab_status%"=="on" if 
+    :: main logic
+    if "!current_redis_status!"=="on" if "!current_matlab_status!"=="off" (
+        call :start_matlab !matlab_name!
+        set matlab_pid=!res!
+    )
 
-timeout 10
-@REM taskkill /PID %res%
+    if "!current_redis_status!"=="off" if "!current_matlab_status!"=="on" (
+        taskkill /PID !matlab_pid!
+    )
 
-goto exit_loop
+    if "!current_redis_status!"=="restart" (
+        if "!current_matlab_status!"=="on" (
+            taskkill /PID !matlab_pid!
+        )
+        call :send_redis set worker:!wid!:status on
+    )
+
+    timeout 10
+
+    @REM goto exit_loop
 goto main_loop
 
 :exit_loop
 call :send_redis set handler:%hostname%:alive 0
 exit /b
 
+:: =================== helper functions ========================
 :get_pid
-for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /NH /FI "WINDOWTITLE eq %1"`) Do set "res=%%f"
+@REM for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /NH /FI "WINDOWTITLE eq *%1"`) do (set "res=%%f")
+for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /nh /v /fi "IMAGENAME eq matlab.exe" ^| find "%1"`) do (set "res=%%f")
+@REM echo pid of %1 is %res%
 exit /b
 
 :is_pid_alive
-for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /NH /FI "pid eq %1"`) do (
+for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /nh /fi "pid eq %1"`) do (
     if "%%f"=="%1" (
         set "res=on"
     ) else (
@@ -85,9 +96,9 @@ for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /NH /FI "pid eq %1"`) do (
 exit /b
 
 :start_matlab
-echo start matlab process at %matlab_path%
+@REM echo start matlab process at %matlab_path%
 start "%1" "%matlab_path%" -sd "%CD%" -batch "%matlab_runner_script%"
-call :get_pid %matlab_name%
+call :get_pid %1
 exit /b
 
 :kill
