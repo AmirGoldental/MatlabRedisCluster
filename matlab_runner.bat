@@ -19,8 +19,8 @@ echo Load parameters from %params_path%
 for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
 
 echo Check that redis exists 
-if not exist %redis_cli_path% (echo %redis_cli_path% does not exists) 
-if not exist %redis_server_path% (echo %redis_server_path% does not exists) 
+if not exist %redis_cli_path% (echo %redis_cli_path% does not exists & exit /b) 
+if not exist %redis_server_path% (echo %redis_server_path% does not exists & exit /b) 
 
 echo Load host conf file at %redis_host_file%
 for /f "tokens=1*delims==" %%x in (%redis_host_file%) do call :run_and_set %%x %%y
@@ -106,7 +106,7 @@ exit /b
 
 :send_redis
 set res=failed
-FOR /F "tokens=*" %%g IN ('%redis_cli_path% -h %redishost% -p %redisport% -a %redis_password% -n %redis_db% %*') do (
+FOR /F "tokens=*" %%g IN ('%redis_cli_path% -h %redis_host% -p %redis_port% -a %redis_password% -n %redis_db% %*') do (
     set res=%%g
 )
 exit /b
