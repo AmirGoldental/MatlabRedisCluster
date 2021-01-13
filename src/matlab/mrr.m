@@ -1,5 +1,5 @@
 function output = mrr(varargin)
-%MRR is Matlab Redis Runner's Matlab CLI
+%mrr is Matlab Redis Runner's Matlab CLI
 % Commands:
 %   mrr set_config_file <path_to_file>
 %   mrr get_status
