@@ -1,4 +1,4 @@
-function cluster_status = get_redis_data(varargin)
+function cluster_status = get_cluster_status(varargin)
 if any(strcmpi(varargin, 'mock'))
     task_id = {7; 8; 5};
     task_name = {'func1'; 'py_func'; 'some_magic'};

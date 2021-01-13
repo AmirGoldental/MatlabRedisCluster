@@ -2,15 +2,15 @@ classdef RedisConnection<handle
     %REDISCONNECTION is a lightweight matlab client for redis
     % r = RedisConnection({...,...})
     % r.cmd('set a 1')
-    properties
+    properties (Access = private)
         redis_config_files
         redis_cmd
     end
     
     methods
-        function obj = RedisConnection(varargin)
+        function obj = RedisConnection(config_folder_path)
             % RedisConnection(conf_files_cell_array)
-            redis_config_files = varargin{1};
+            redis_config_files = fullfile(config_folder_path, {'main.conf', 'redis.host'});
             % Read conf files
             for file_path = redis_config_files
                 f = fopen(file_path{1});
@@ -40,7 +40,9 @@ classdef RedisConnection<handle
         function output = cmd(obj,commend)
             disp([obj.redis_cmd ' ' commend])
             [exit_flag, output] = system([obj.redis_cmd commend]);
+            output = output(1:end-1);
         end
+        
     end
 end
 
