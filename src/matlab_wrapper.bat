@@ -1,6 +1,6 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-:: usage: matlab_worker.bat <params_path>
+:: usage: matlab_wrapper.bat <params_path>
 :: main loop:
 :: - check in redis to see status
 :: - if current matlab is on and status off, kill matlab
@@ -32,33 +32,33 @@ if "%res%"=="failed" (
     call :logger INFO redis ping ponged
 ) 
 
-call :send_redis incr workers:ind
+call :send_redis incr wrapper:ind
 set wid=%res%
 set matlab_name=mrr_worker_%wid%
-call :logger INFO got worker id: %wid%
+call :logger INFO got wrapper id: %wid%
 
-call :send_redis set worker:!wid!:status on
-call :send_redis set worker:!wid!:host !hostname!
+call :send_redis set wrapper:!wid!:status on
+call :send_redis set wrapper:!wid!:host !hostname!
 call :start_matlab !matlab_name!
 set matlab_pid=!res!
 
 :main_loop
-    @timeout %worker_loop_wait_seconds% >nul
+    @timeout %wrapper_loop_wait_seconds% >nul
     :: check if matlab is alive
     call :is_pid_alive !matlab_pid!
     set current_matlab_status=!res!
 
     :: check redis status
-    call :send_redis get worker:!wid!:status
+    call :send_redis get wrapper:!wid!:status
     if "!res!"=="failed" (
         call :logger WARNING redis failed with command !redis_cmd!
         call :send_redis ping
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
         ) else (
-            call :logger INFO redis ping ponged recover worker status
-            call :send_redis set worker:!wid!:status !current_matlab_status!
-            call :send_redis set worker:!wid!:host !hostname!
+            call :logger INFO redis ping ponged recover wrapper status
+            call :send_redis set wrapper:!wid!:status !current_matlab_status!
+            call :send_redis set wrapper:!wid!:host !hostname!
         ) 
         goto main_loop
     )
@@ -83,7 +83,7 @@ set matlab_pid=!res!
         if "!current_matlab_status!"=="on" (
             taskkill /PID !matlab_pid!
         )
-        call :send_redis set worker:!wid!:status on
+        call :send_redis set wrapper:!wid!:status on
     )
 
 goto main_loop
