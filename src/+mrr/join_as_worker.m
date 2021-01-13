@@ -28,11 +28,12 @@ end
         disp(task)
         try
             eval(task.command)
-            redis_connection.cmd(['SPOP ongoing_matlab_tasks ' struct_to_redis_json(task) ]);
-            task.finished_on = datetime();
-            redis_connection.cmd(['SADD finished__matlab_tasks ' struct_to_redis_json(task) ]);
+            redis_connection.cmd(['SREM ongoing_matlab_tasks ' struct_to_redis_json(task) ]);
+            finished_task = task;
+            finished_task.finished_on = datetime();
+            redis_connection.cmd(['SADD finished_matlab_tasks ' struct_to_redis_json(finished_task) ]);
         catch err
-            redis_connection.cmd(['SPOP ongoing_matlab_tasks ' struct_to_redis_json(task) ]);
+            redis_connection.cmd(['SREM ongoing_matlab_tasks ' struct_to_redis_json(task) ]);
             task.failed_on = datetime();
             task.error = err;
             redis_connection.cmd(['SADD failed_matlab_tasks ' struct_to_redis_json(task) ]);

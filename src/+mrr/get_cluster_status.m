@@ -28,10 +28,10 @@ if any(strcmpi(varargin, 'mock'))
     cluster_status.waiting_tasks = waiting_tasks;
 else
     redis_connection = mrr.RedisConnection(fullfile(fileparts(mfilename('fullpath')),'..'));
-    pending_matlab_tasks = redis_output_to_table(redis_connection.cmd('LRANGE pending_matlab_tasks 0 -1'))
-    ongoing_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS ongoing_matlab_tasks'))
-    finished_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS finished_matlab_tasks'))
-    failed_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS failed_matlab_tasks'))
+    cluster_status.pending_matlab_tasks = redis_output_to_table(redis_connection.cmd('LRANGE pending_matlab_tasks 0 -1'));
+    cluster_status.ongoing_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS ongoing_matlab_tasks'));
+    cluster_status.finished_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS finished_matlab_tasks'));
+    cluster_status.failed_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS failed_matlab_tasks'));
     
 end
 end
