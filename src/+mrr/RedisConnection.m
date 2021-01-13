@@ -37,8 +37,8 @@ classdef RedisConnection<handle
             
         end
         
-        function output = cmd(obj,commend)
-            [exit_flag, output] = system([obj.redis_cmd commend]);
+        function output = cmd(obj,command)
+            [exit_flag, output] = system([obj.redis_cmd command]);
             output = output(1:end-1);
         end
         
