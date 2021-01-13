@@ -15,7 +15,7 @@ if ~isempty(find(command == '(',1))
     [~, user_name] = system('whoami');
     task.created_by = user_name(1:end-1);
     task.created_on = datetime();
-    redis_connection = mrr.RedisConnection(fullfile(fileparts(mfilename('fullpath')),'..','..'));
+    redis_connection = mrr.RedisConnection(fullfile(fileparts(mfilename('fullpath')),'..'));
     task_id = redis_connection.cmd('incr tasks_count');
     task.task_id = task_id;
     response = redis_connection.cmd(['lpush pending_' task_type '_tasks ' struct_to_redis_json(task) ]);
