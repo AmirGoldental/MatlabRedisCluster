@@ -1,5 +1,4 @@
 function flush_db()
-redis_connection = mrr.RedisConnection();
-redis_connection.cmd('FLUSHALL');
+mrr.redis_cmd('FLUSHALL');
 end
 
