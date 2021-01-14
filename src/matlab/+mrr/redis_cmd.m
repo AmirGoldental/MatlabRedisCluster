@@ -1,11 +1,12 @@
-function output = redis_cmd(command)
-conf_path = fullfile(fileparts(mfilename('fullpath')),'\..\mrr_client.conf');
-conf = read_conf_file(conf_path);
-
-redis_cmd = [conf.redis_cli_path ' -h ' conf.redis_hostname ' -p '...
-    conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
-
-[exit_flag, output] = system([redis_cmd char(command)]);
+function [output, redis_cmd_prefix] = redis_cmd(command, redis_cmd_prefix)
+if ~exist('redis_cmd_prefix', 'var')
+    conf_path = fullfile(fileparts(mfilename('fullpath')),'\..\mrr_client.conf');
+    conf = read_conf_file(conf_path);
+    
+    redis_cmd_prefix = [conf.redis_cli_path ' -h ' conf.redis_hostname ' -p '...
+        conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
+end
+[exit_flag, output] = system([redis_cmd_prefix char(command)]);
 
 if exit_flag == 1
     disp(output)

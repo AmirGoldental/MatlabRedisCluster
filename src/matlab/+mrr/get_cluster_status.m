@@ -1,62 +1,29 @@
-function cluster_status = get_cluster_status(varargin)
-if any(strcmpi(varargin, 'mock'))
-    task_id = {7; 8; 5};
-    task_name = {'func1'; 'py_func'; 'some_magic'};
-    type = {'matlab'; 'python'; 'exec'};
-    command = {"func1('C:\path1','C:\path2')"; "py_func('C:\path1','C:\path2')"; 'mkdir path'};
-    created_on = {'13_20_56__25_07_2020'; '14_20_56__25_07_2020'; '15_20_56__25_07_2020'};
-    created_by = {'user1'; 'user2'; 'user1'};
-    waiting_tasks = table(task_id, task_name, type, command, created_on, created_by);
-    
-    task_id = {1; 2; 4};
-    task_name = {'func1'; 'py_func'; 'some_magic'};
-    type = {'matlab'; 'python'; 'exec'};
-    command = {"func1('C:\path1','C:\path2')"; "py_func('C:\path1','C:\path2')"; 'mkdir path'};
-    created_on = {'13_20_56__25_07_2020'; '14_20_56__25_07_2020'; '15_20_56__25_07_2020'};
-    started_on = {'13_21_56__25_07_2020'; '14_22_56__25_07_2020'; '15_23_56__25_07_2020'};
-    created_by = {'user1'; 'user2'; 'user1'};
-    ongoing_tasks = table(task_id, task_name, type, command, created_on, created_by, started_on);
-    
-    worker_id = [1:4]';
-    server_name = {'comp1'; 'comp1'; 'comp2'; 'comp2'};
-    type = {'matlab'; 'matlab'; 'python'; 'exec'};
-    worker_task = {'None'; jsonencode(ongoing_tasks(1,:)); jsonencode(ongoing_tasks(2,:)); jsonencode(ongoing_tasks(3,:))};
-    server_started_on = {'13_21_56__25_07_2019'; '14_22_56__25_07_2019'; '15_23_56__25_07_2019'; '15_23_56__25_07_2019'};
-    workers = table(worker_id, type, server_name, server_started_on, worker_task);
-    
-    cluster_status.workers = workers;
-    cluster_status.waiting_tasks = waiting_tasks;
-else
-    redis_connection = mrr.RedisConnection();
-    cluster_status.pending_matlab_tasks = redis_output_to_table(redis_connection.cmd('LRANGE pending_matlab_tasks 0 -1'));
-    cluster_status.ongoing_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS ongoing_matlab_tasks'));
-    cluster_status.finished_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS finished_matlab_tasks'));
-    cluster_status.failed_matlab_tasks = redis_output_to_table(redis_connection.cmd('SMEMBERS failed_matlab_tasks'));
-    
+function status = get_cluster_status(list_name)
+
+switch list_name
+    case 'workers'
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['keys worker:*']); 
+    case 'pending'
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['lrange pending_matlab_tasks 0 -1']);
+    case 'ongoing'
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS ongoing_matlab_tasks']);   
+    case 'finished'
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS finished_matlab_tasks']);   
+    case 'failed'
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS failed_matlab_tasks']); 
+    otherwise
+        error('Unknown list_name')
 end
+keys = split(keys, newline);
+output = struct();
+itter = 0;
+for key = keys'
+    itter = itter + 1;
+    output.key(itter,1) = string(key{1});
+    obj_cells = split(mrr.redis_cmd(['HGETALL ' key{1}], redis_cmd_prefix), newline);
+    for cell_idx = 1:2:(length(obj_cells)-1)
+        output.(obj_cells{cell_idx})(itter,1) = string(obj_cells{cell_idx+1});
+    end
 end
-function output_table = redis_output_to_table(input_str)
-    output_table = table();
-    if isempty(input_str)
-        return
-    end
-    input_cell = cellfun(@(x) jsondecode(x), split(input_str, newline));
-    
-    
-    special = '"';
-    raw_str = '';
-    for l = input_str
-        if ~isempty(find(special == l, 1))
-            raw_str = [raw_str, '\', l];
-        else
-            raw_str = [raw_str, l];
-        end
-    end
-    raw_str = ['"' raw_str '"'];
-    
-    
-    for field = fieldnames(input_cell(1))'
-        output_table.(field{1}) = arrayfun(@(x) x.(field{1}), input_cell, 'UniformOutput', false);
-    end
-    output_table.raw_str = split(raw_str, newline);
+status = struct2table(output);
 end

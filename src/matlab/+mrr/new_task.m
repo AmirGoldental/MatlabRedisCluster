@@ -18,6 +18,6 @@ end
 mrr.redis_cmd(['HMSET task:' num2str(task_id) ' ' task_str])
 
 task.id = task_id;
-mrr.redis_cmd(['lpush pending_' task_type '_tasks ' num2str(task_id)]);
+mrr.redis_cmd(['lpush pending_' task_type '_tasks task:' num2str(task_id)]);
 end
 
