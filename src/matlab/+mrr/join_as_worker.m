@@ -9,7 +9,7 @@ worker_str = [];
 for field = fieldnames(worker)'
     worker_str = [worker_str ' ' field{1} ' ' str_to_redis_str(worker.(field{1}))];
 end
-mrr.redis_cmd(['HMSET worker:' num2str(worker_id) ' ' worker_str])
+mrr.redis_cmd(['HMSET worker:' worker_id ' ' worker_str])
 worker.id = worker_id;
 
 while mrr.redis_cmd(['HEXISTS worker:' worker_id ' computer']) == '1'
@@ -17,31 +17,32 @@ while mrr.redis_cmd(['HEXISTS worker:' worker_id ' computer']) == '1'
 end
 
     function preform_task(worker_id)
-        task_kew = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
-        if isempty(task_kew)
+        task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
+        if isempty(task_key)
             pause(3)
             return
         end
         task = struct();
-        task.command = mrr.redis_cmd(['HGET ' task_kew ' command']);
-        task.created_by = mrr.redis_cmd(['HGET ' task_kew ' created_by']);
-        task.created_on = mrr.redis_cmd(['HGET ' task_kew ' created_on']);
-        mrr.redis_cmd(['HMSET task:' task_kew ...
+        task.command = mrr.redis_cmd(['HGET ' task_key ' command']);
+        task.created_by = mrr.redis_cmd(['HGET ' task_key ' created_by']);
+        task.created_on = mrr.redis_cmd(['HGET ' task_key ' created_on']);
+        mrr.redis_cmd(['HMSET task:' task_key ...
             ' started_on ' str_to_redis_str(datetime) ' worker_id ' worker_id]);
+        mrr.redis_cmd(['HSET worker:' worker_id ' current_task ' task_key]);
         disp(task)
         try
             eval(task.command)
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_kew])
-            mrr.redis_cmd(['SADD finished_matlab_tasks ' task_kew ]);
-
-            mrr.redis_cmd(['HMSET ' task_kew ' finished_on ' str_to_redis_str(datetime)]);
+            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key])
+            mrr.redis_cmd(['SADD finished_matlab_tasks ' task_key ]);
+            mrr.redis_cmd(['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime)]);
         catch err
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_kew])
-            mrr.redis_cmd(['SADD failed_matlab_tasks ' task_kew ]);
-            mrr.redis_cmd(['HSET ' task_kew ' failed_on ' str_to_redis_str(datetime)]);
-            mrr.redis_cmd(['HSET ' task_kew ' err_msg ' str_to_redis_str(jsonencode(err))]);
+            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key])
+            mrr.redis_cmd(['SADD failed_matlab_tasks ' task_key ]);
+            mrr.redis_cmd(['HSET ' task_key ' failed_on ' str_to_redis_str(datetime)]);
+            mrr.redis_cmd(['HSET ' task_key ' err_msg ' str_to_redis_str(jsonencode(err))]);
             disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
         end
+        mrr.redis_cmd(['HDEL worker:' worker_id ' current_task ' task_key]);
     end
 end
 

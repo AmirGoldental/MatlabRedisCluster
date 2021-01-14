@@ -17,6 +17,10 @@ end
 keys = split(keys, newline);
 output = struct();
 itter = 0;
+if isempty(keys{1})
+    status = table();
+    return
+end
 for key = keys'
     itter = itter + 1;
     output.key(itter,1) = string(key{1});
