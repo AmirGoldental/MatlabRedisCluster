@@ -11,6 +11,7 @@ SETLOCAL EnableDelayedExpansion
 set params_path=%1
 set worker_id=%2
 
+echo test
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
 call :logger INFO load parameters from %params_path%
@@ -70,7 +71,12 @@ if "%res%"=="failed" (
         :: find and move current task to failed
         call :send_redis hget worker:!worker_id! current_task
         if not "!res!"=="failed" (
+            set current_task=!res!
             :: move task from ongoing to error and push error message
+            call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
+            call :send_redis sadd failed_matlab_tasks !current_task!
+            call :send_redis hset !current_task! failed_on "%date% %time%"
+            call :send_redis hset !current_task! err_msg "worker killed" 
             call :send_redis hdel worker:!worker_id! current_task
         )
         
@@ -78,17 +84,22 @@ if "%res%"=="failed" (
         exit /b
     )
 
-    if "!worker_status!"=="active" if "!matlab_status!"=="off" (        
+    if "!worker_status!"=="active" if "!matlab_status!"=="off" (     
+        call :logger INFO matlab died
         :: find and move current task to failed
         call :send_redis hget worker:!worker_id! current_task
         if not "!res!"=="failed" (
             :: move task from ongoing to error and push error message
+            call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
+            call :send_redis sadd failed_matlab_tasks !current_task!
+            call :send_redis hset !current_task! failed_on "%date% %time%"
+            call :send_redis hset !current_task! err_msg "worker died" 
             call :send_redis hdel worker:!worker_id! current_task
         )
 
         if "%matlab_restart_on_fail%"=="true" (
             call :send_redis hset worker:!worker_id! status restart
-            :: detach restart matlab
+            call %~dp0%matlab_worker_wrapper.bat
         ) else (
             call :send_redis hset worker:!worker_id! status dead
         )
