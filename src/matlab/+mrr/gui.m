@@ -1,5 +1,4 @@
 function gui()
-cluster_status = mrr.get_cluster_status();
 fig = figure('Name', 'Matlab Redis Runner', 'MenuBar', 'none', 'Color' ,'#CFD8DC');
 fig.NumberTitle = 'off'; 
 fig.Units = 'normalized';
@@ -42,15 +41,20 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
 refresh()
 
     function filter_button_callback(category)
+        data = mrr.get_cluster_status(category);
         gui_status.active_filter_button = category;
         structfun(@(button) set(button, 'BackgroundColor', '#9FA8DA'), filter_buttons)
         filter_buttons.(category).BackgroundColor = '#3949AB';
         if strcmp(category, 'workers')
-            warning('Not yet implemented');
+            if ~isempty(data)
+                command_list.String = data.computer;
+            else
+                command_list.String = {};
+            end
         else
             command_list.Value = 1;
-            if ~isempty(cluster_status.([category '_matlab_tasks']))
-                command_list.String = cluster_status.([category '_matlab_tasks']).command;
+            if ~isempty(data)
+                command_list.String = data.command;
             else
                 command_list.String = {};
             end
@@ -64,7 +68,6 @@ refresh()
     end
     
     function refresh()
-        cluster_status = mrr.get_cluster_status();
         filter_button_callback(gui_status.active_filter_button)
         fig.Name = ['Matlab Redis Runner, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
     end
