@@ -23,9 +23,9 @@ filter_buttons.workers = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Workers', 'Units', 'normalized', 'Position', [0.01 0.72 0.1 0.0499],...
     'callback', @(~,~) filter_button_callback('workers'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
-delete_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
+delete_pending_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
     'String', 'Delete task(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
-    'callback', @(~,~) delete_tasks(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
+    'callback', @(~,~) delete_pending_tasks(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
 view_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#303F9F',...
     'String', 'View details', 'Units', 'normalized', 'Position', [0.01 0.07 0.1 0.0499],...
@@ -57,9 +57,9 @@ refresh()
         end
         
         if strcmp(category, 'pending')
-            delete_button.Visible = 'on';
+            delete_pending_button.Visible = 'on';
         else
-            delete_button.Visible = 'off';
+            delete_pending_button.Visible = 'off';
         end
     end
     
@@ -69,8 +69,14 @@ refresh()
         fig.Name = ['Matlab Redis Runner, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
     end
 
-    function delete_tasks()
-        warning('Not yet implemented')
+    function delete_pending_tasks()
+        tasks_to_remove = command_list.Value;
+        for task_raw = cluster_status.pending_matlab_tasks.raw_str(tasks_to_remove)'
+            redis_connection = mrr.RedisConnection();
+            redis_connection.cmd(['LREM pending_matlab_tasks 0 "' task_raw{1} '"'])
+        end
+        
+        refresh()
     end
 
     function view_task()

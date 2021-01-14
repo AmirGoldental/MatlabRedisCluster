@@ -34,6 +34,9 @@ classdef RedisConnection<handle
             if strcmp(output(1:min(26,end)), 'Could not connect to Redis')
                 error('Could not connect to Redis')
             end
+            if strcmp(output(1:min(3,end)), 'ERR')
+                error(output(1:end-2));
+            end
             output = output(1:end-1);
         end
         

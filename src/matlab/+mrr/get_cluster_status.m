@@ -41,7 +41,22 @@ function output_table = redis_output_to_table(input_str)
         return
     end
     input_cell = cellfun(@(x) jsondecode(x), split(input_str, newline));
+    
+    
+    special = '"';
+    raw_str = '';
+    for l = input_str
+        if ~isempty(find(special == l, 1))
+            raw_str = [raw_str, '\', l];
+        else
+            raw_str = [raw_str, l];
+        end
+    end
+    raw_str = ['"' raw_str '"'];
+    
+    
     for field = fieldnames(input_cell(1))'
         output_table.(field{1}) = arrayfun(@(x) x.(field{1}), input_cell, 'UniformOutput', false);
     end
+    output_table.raw_str = split(raw_str, newline);
 end
