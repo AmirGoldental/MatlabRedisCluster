@@ -1,6 +1,6 @@
 function join_as_worker()
 
-redis_connection = mrr.RedisConnection(fullfile(fileparts(mfilename('fullpath')),'..'));
+redis_connection = mrr.RedisConnection();
 worker_id = redis_connection.cmd('incr matlab_workers_count');
 redis_connection.cmd(['sadd workers ' worker_id]);
 

@@ -9,6 +9,9 @@ classdef RedisConnection<handle
     
     methods
         function obj = RedisConnection(config_folder_path)
+            if ~exist('config_folder_path', 'var')
+                config_folder_path = fullfile(fileparts(mfilename('fullpath')),'\..\..\host');
+            end
             % RedisConnection(conf_files_cell_array)
             redis_config_files = fullfile(config_folder_path, {'main.conf', 'redis.host'});
             % Read conf files
@@ -39,6 +42,9 @@ classdef RedisConnection<handle
         
         function output = cmd(obj,command)
             [exit_flag, output] = system([obj.redis_cmd command]);
+            if exit_flag == 1
+                disp(output)
+            end
             output = output(1:end-1);
         end
         
