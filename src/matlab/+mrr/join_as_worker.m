@@ -6,12 +6,12 @@ redis_connection.cmd(['sadd workers ' worker_id]);
 
 while redis_connection.cmd(['sismember workers ' worker_id]) == '1'
     preform_task()
-    pause(3)
 end
 
     function preform_task()
         response = redis_connection.cmd('rpop pending_matlab_tasks');
         if isempty(response)
+            pause(3)
             return
         end
         try
