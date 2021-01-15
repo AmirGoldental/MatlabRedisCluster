@@ -70,7 +70,7 @@ if "%res%"=="failed" (
         )
         
         call :send_redis hset worker:!worker_id! status dead
-        exit /b
+        exit /s
     )
 
     if "!worker_status!"=="active" if "!matlab_status!"=="off" (     
@@ -92,7 +92,7 @@ if "%res%"=="failed" (
         ) else (
             call :send_redis hset worker:!worker_id! status dead
         )
-        exit /b
+        exit /s
     )
 goto main_loop
 
