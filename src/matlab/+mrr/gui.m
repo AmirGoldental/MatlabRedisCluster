@@ -3,7 +3,7 @@ fig = figure('Name', 'Matlab Redis Runner', 'MenuBar', 'none', 'Color' ,'#CFD8DC
 fig.NumberTitle = 'off'; 
 fig.Units = 'normalized';
 fig.Position = [0.02 0.04 0.95 0.85];
-
+data = [];
 gui_status.active_filter_button = 'ongoing';
 
 filter_buttons.ongoing = uicontrol(fig, 'Style', 'pushbutton', ...
@@ -26,9 +26,13 @@ delete_pending_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor',
     'String', 'Delete task(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
     'callback', @(~,~) delete_pending_tasks(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
-view_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#303F9F',...
+kill_worker_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
+    'String', 'Kill worker(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
+    'callback', @(~,~) kill_worker(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
+
+details_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#303F9F',...
     'String', 'View details', 'Units', 'normalized', 'Position', [0.01 0.07 0.1 0.0499],...
-    'callback', @(~,~) view_task, 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
+    'callback', @(~,~) details, 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
 refresh_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#009688',...
     'String', 'Refresh', 'Units', 'normalized', 'Position', [0.01 0.02 0.1 0.0499],...
@@ -45,25 +49,37 @@ refresh()
         gui_status.active_filter_button = category;
         structfun(@(button) set(button, 'BackgroundColor', '#9FA8DA'), filter_buttons)
         filter_buttons.(category).BackgroundColor = '#3949AB';
-        if strcmp(category, 'workers')
-            if ~isempty(data)
-                command_list.String = data.computer;
-            else
-                command_list.String = {};
-            end
-        else
-            command_list.Value = 1;
-            if ~isempty(data)
-                command_list.String = data.command;
-            else
-                command_list.String = {};
-            end
+        delete_pending_button.Visible = 'off';
+        kill_worker_button.Visible = 'off';
+        command_list.Value = 1;
+        if isempty(data)
+            command_list.String = {};
+            return
+        end
+        switch category
+            case 'pending'
+                command_list.String = strcat("[", data.created_on, "] (",...
+                    data.created_by, "): ", data.command);
+                delete_pending_button.Visible = 'on';
+            case 'ongoing'
+                command_list.String = strcat("[", data.started_on, "] (",...
+                    data.created_by, "->", data.worker, "): ", data.command);
+            case 'finished'
+                command_list.String = strcat("[", data.finished_on, "] (",...
+                    data.created_by, "->", data.worker, "): ", data.command);
+            case 'failed'
+                command_list.String = strcat("[",data.failed_on, "] (",...
+                    data.created_by, "->", data.worker, "): ", data.command);
+            case 'workers'
+                command_list.String = strcat("[", data.key, "] (", ...
+                    data.computer, "): ",data.status);
+                kill_worker_button.Visible = 'on';
         end
         
         if strcmp(category, 'pending')
             delete_pending_button.Visible = 'on';
         else
-            delete_pending_button.Visible = 'off';
+            
         end
     end
     
@@ -74,15 +90,33 @@ refresh()
 
     function delete_pending_tasks()
         tasks_to_remove = command_list.Value;
-        for task_raw = cluster_status.pending_matlab_tasks.raw_str(tasks_to_remove)'
-            redis_connection = mrr.RedisConnection();
-            redis_connection.cmd(['LREM pending_matlab_tasks 0 "' task_raw{1} '"'])
+        for task_key = data.key(tasks_to_remove)'
+            mrr.redis_cmd(['LREM pending_matlab_tasks 0 "' char(task_key) '"'])
         end
         
         refresh()
     end
 
-    function view_task()
-        warning('Not yet implemented')
+
+    function kill_worker()
+        workers_to_kill = command_list.Value;
+        for worker_key = data.key(workers_to_kill)'
+            mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+        end
+        refresh()
+    end
+
+    function details()
+        entries = command_list.Value;
+        
+        for entry = entries(:)'
+            strcells = strcat(fieldnames(table2struct(data(entry,:))), ' : "', cellstr(table2cell(data(entry,:))'), '"');
+            Hndl = figure('MenuBar', 'none', 'Name', 'details',...
+                'NumberTitle' ,'off', 'Units', 'normalized');
+            uicontrol(Hndl, 'Style', 'text', 'Units', 'normalized', ...
+                'Position', [0.01 0.01 0.98 0.9], 'String', strcells,...
+                'Callback', @(~,~) close(Hndl), 'FontSize', 16, 'FontName', 'Consolas')
+            drawnow
+        end
     end
 end

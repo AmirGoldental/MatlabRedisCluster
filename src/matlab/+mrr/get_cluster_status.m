@@ -6,7 +6,7 @@ switch list_name
     case 'pending'
         [keys, redis_cmd_prefix] = mrr.redis_cmd(['lrange pending_matlab_tasks 0 -1']);
     case 'ongoing'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS ongoing_matlab_tasks']);   
+        [keys, redis_cmd_prefix] = mrr.redis_cmd(['lrange ongoing_matlab_tasks 0 -1']);   
     case 'finished'
         [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS finished_matlab_tasks']);   
     case 'failed'
