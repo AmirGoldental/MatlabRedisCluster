@@ -3,6 +3,12 @@ worker = struct();
 worker_id = mrr.redis_cmd('incr matlab_workers_count');
 worker.started_on = datetime();
 [~, worker_station] = system('whoami');
+
+mrr_dir = fileparts(fileparts(mfilename('fullpath')));
+system(sprintf('start "worker_%s_watcher" /D "%s" %s %s %s %d', worker_id, ...
+    mrr_dir, 'matlab_worker_watcher.bat', 'mrr_client.conf', worker_id, feature('getpid')));
+
+worker.status = 'active';
 worker.computer = worker_station(1:end-1);
 
 worker_str = [];

@@ -1,6 +1,6 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-:: usage: matlab_wrapper.bat <params_path> <worker-id>
+:: usage: matlab_wrapper.bat <params_path> <worker-id> <matlab-pid
 :: main loop:
 :: - check in redis to see status
 :: - if matlab is said to be killed, kill it
@@ -10,6 +10,7 @@ SETLOCAL EnableDelayedExpansion
 ::      - if matlab_restart_on_fail restart matlab with the same worker-id?
 set params_path=%1
 set worker_id=%2
+set matlab_pid=%3
 
 echo test
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
@@ -20,21 +21,9 @@ for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
 call :logger INFO check that redis exists 
 if not exist %redis_cli_path% (echo !redis_cli_path! does not exists & exit /b) 
 
-set title=%random%_%worker_id%_matlab_watcher
-title %title%
-start "%title%" pause
-call :get_pid_by_window_name %title%
-set dummy_pid=!res!
-call :get_parent_pid !dummy_pid!
-set my_pid=!res!
-call :get_parent_pid !my_pid!
-set parent_pid=!res!
-echo dummy, my and parent pids: %dummy_pid%, %my_pid%, %parent_pid%
-taskkill /PID !dummy_pid!
-
 call :send_redis ping
 if "%res%"=="failed" (
-    call :logger ERROR failed pinging redis %redis_cli_path% -h %redishost% -p %redisport% -a %redis_password% -n %redis_db%
+    call :logger ERROR failed pinging redis %redis_cli_path% -h %redis_hostname% -p %redis_port% -a %redis_password% -n %redis_db%
     exit /b
 ) else (
     call :logger INFO redis ping ponged
@@ -44,13 +33,13 @@ if "%res%"=="failed" (
     @timeout %wrapper_loop_wait_seconds% >nul
 
     :: check if matlab is alive
-    call :is_pid_alive !parent_pid!
+    call :is_pid_alive !matlab_pid!
     set matlab_status=!res!
 
     :: check redis status
     call :send_redis hget worker:!worker_id! status
     if "!res!"=="failed" (
-        call :logger WARNING redis failed with command !redis_cmd!
+        call :logger WARNING redis failed with command !redis_cmd! hget worker:!worker_id! status
         call :send_redis ping
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
@@ -65,8 +54,8 @@ if "%res%"=="failed" (
 
     :: main logic
     if "!worker_status!"=="kill" if "!matlab_status!"=="on" (
-        call :logger INFO kill matlab worker !worker_id! of pid=!parent_pid!
-        taskkill /PID !parent_pid!
+        call :logger INFO kill matlab worker !worker_id! of pid=!matlab_pid!
+        taskkill /PID !matlab_pid!
 
         :: find and move current task to failed
         call :send_redis hget worker:!worker_id! current_task
@@ -155,7 +144,7 @@ exit /b
 
 :send_redis
 set res=failed
-set "redis_cmd=%redis_cli_path% -h %redis_host% -p %redis_port% -a %redis_password% -n %redis_db%"
+set "redis_cmd=%redis_cli_path% -h %redis_hostname% -p %redis_port% -a %redis_password% -n %redis_db%"
 for /f "tokens=*" %%g in ('!redis_cmd! %*') do (set res=%%g)
 exit /b
 
