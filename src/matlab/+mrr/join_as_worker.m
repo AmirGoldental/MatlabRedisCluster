@@ -30,7 +30,7 @@ end
 if ishandle(Hndl)
     close(Hndl)
 end
-mrr.redis_cmd(['HSET ' worker_key ' status dead'])
+mrr.redis_cmd(['HSET ' worker_key ' status kill'])
 
     function preform_task(worker_key)
         task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
@@ -44,7 +44,7 @@ mrr.redis_cmd(['HSET ' worker_key ' status dead'])
         task.created_on = mrr.redis_cmd(['HGET ' task_key ' created_on']);
         mrr.redis_cmd(['HMSET ' task_key ...
             ' started_on ' str_to_redis_str(datetime) ' worker ' worker_key]);
-        mrr.redis_cmd(['HMSET ' worker_key ' current_task ' task_key ' last_command ' task.command]);
+        mrr.redis_cmd(['HMSET ' worker_key ' current_task ' task_key ' last_command ' str_to_redis_str(task.command)]);
         disp(task)
         try
             eval(task.command)
