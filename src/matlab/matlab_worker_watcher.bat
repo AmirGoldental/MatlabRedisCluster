@@ -9,7 +9,7 @@ SETLOCAL EnableDelayedExpansion
 ::      - search current task (if exists) and move to failed with errormsg of matlab died
 ::      - if matlab_restart_on_fail restart matlab with the same worker-id?
 set params_path=%1
-set worker_id=%2
+set worker_key=%2
 set matlab_pid=%3
 
 echo test
@@ -37,9 +37,9 @@ if "%res%"=="failed" (
     set matlab_status=!res!
 
     :: check redis status
-    call :send_redis hget worker:!worker_id! status
+    call :send_redis hget !worker_key! status
     if "!res!"=="failed" (
-        call :logger WARNING redis failed with command !redis_cmd! hget worker:!worker_id! status
+        call :logger WARNING redis failed with command !redis_cmd! hget !worker_key! status
         call :send_redis ping
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
@@ -54,43 +54,43 @@ if "%res%"=="failed" (
 
     :: main logic
     if "!worker_status!"=="kill" if "!matlab_status!"=="on" (
-        call :logger INFO kill matlab worker !worker_id! of pid=!matlab_pid!
+        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
         taskkill /PID !matlab_pid!
 
         :: find and move current task to failed
-        call :send_redis hget worker:!worker_id! current_task
-        if not "!res!"=="failed" (
+        call :send_redis hget !worker_key! current_task
+        if not "!res!"=="failed" if not "!res!"=="None"(
             set current_task=!res!
             :: move task from ongoing to error and push error message
             call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
             call :send_redis sadd failed_matlab_tasks !current_task!
             call :send_redis hset !current_task! failed_on "%date% %time%"
             call :send_redis hset !current_task! err_msg "worker killed" 
-            call :send_redis hdel worker:!worker_id! current_task
+            call :send_redis hdel !worker_key! current_task
         )
         
-        call :send_redis hset worker:!worker_id! status dead
+        call :send_redis hset !worker_key! status dead
         exit /s
     )
 
-    if "!worker_status!"=="active" if "!matlab_status!"=="off" (     
+    if "!matlab_status!"=="off" (     
         call :logger INFO matlab died
         :: find and move current task to failed
-        call :send_redis hget worker:!worker_id! current_task
-        if not "!res!"=="failed" (
+        call :send_redis hget !worker_key! current_task
+        if not "!res!"=="failed" if not "!res!"=="None" (
             :: move task from ongoing to error and push error message
             call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
             call :send_redis sadd failed_matlab_tasks !current_task!
             call :send_redis hset !current_task! failed_on "%date% %time%"
             call :send_redis hset !current_task! err_msg "worker died" 
-            call :send_redis hdel worker:!worker_id! current_task
+            call :send_redis hdel !worker_key! current_task
         )
 
         if "%matlab_restart_on_fail%"=="true" (
-            call :send_redis hset worker:!worker_id! status restart
+            call :send_redis hset !worker_key! status restart
             call %~dp0%matlab_worker_wrapper.bat
         ) else (
-            call :send_redis hset worker:!worker_id! status dead
+            call :send_redis hset !worker_key! status dead
         )
         exit /s
     )
