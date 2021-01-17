@@ -19,3 +19,8 @@ exit /b
 :run_and_set
 for /f "tokens=1,* delims= " %%a in ("%*") do set %1=%%b
 exit /b
+
+:logger
+for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
+echo [%1] %date%T%time% %ALL_BUT_FIRST%
+exit /b
