@@ -59,7 +59,7 @@ if "%res%"=="failed" (
 
         :: find and move current task to failed
         call :send_redis hget !worker_key! current_task
-        if not "!res!"=="failed" if not "!res!"=="None"(
+        if not "!res!"=="failed" if not "!res!"=="None" (       
             set current_task=!res!
             :: move task from ongoing to error and push error message
             call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
