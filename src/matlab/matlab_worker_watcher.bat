@@ -56,7 +56,7 @@ if "%res%"=="failed" (
     if "!worker_status!"=="kill" if "!matlab_status!"=="on" (
         call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
         taskkill /PID !matlab_pid!
-
+		
         :: find and move current task to failed
         call :send_redis hget !worker_key! current_task
         if not "!res!"=="failed" if not "!res!"=="None" (       
