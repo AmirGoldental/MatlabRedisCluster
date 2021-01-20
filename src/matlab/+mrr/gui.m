@@ -102,7 +102,9 @@ refresh()
     function kill_worker()
         workers_to_kill = command_list.Value;
         for worker_key = data.key(workers_to_kill)'
-            mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+            if strcmpi(mrr.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
+                mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+            end
         end
         refresh()
     end
