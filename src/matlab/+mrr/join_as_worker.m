@@ -2,7 +2,6 @@ function join_as_worker()
 worker = struct();
 worker_key = ['worker:' mrr.redis_cmd('incr matlab_workers_count')];
 worker.started_on = datetime();
-[~, worker_station] = system('whoami');
 
 mrr_dir = fileparts(fileparts(mfilename('fullpath')));
 system(['start "worker_watcher" /D "' mrr_dir ...
@@ -10,7 +9,7 @@ system(['start "worker_watcher" /D "' mrr_dir ...
     num2str(feature('getpid'))]);
 
 worker.status = 'active';
-worker.computer = worker_station(1:end-1);
+worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
 worker.current_task = 'None';
 worker.last_command = 'None';
 worker_str = [];
