@@ -1,0 +1,11 @@
+{
+  "mrr.new_task":
+  {
+     "inputs":
+     [
+        {"name":"commands",  "kind":"required", "type":[["char"], ["cell"]]},
+        {"name":"wait",  "kind":"flag", "type":["char", "choices={'wait'}"] },
+        {"name":"task_type",  "kind":"flag", "type":["char", "choices={'matlab, batch'}"] }
+     ]
+  }
+}

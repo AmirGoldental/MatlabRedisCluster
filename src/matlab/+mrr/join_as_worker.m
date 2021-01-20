@@ -17,7 +17,7 @@ worker_str = [];
 for field = fieldnames(worker)'
     worker_str = [worker_str ' ' field{1} ' ' str_to_redis_str(worker.(field{1}))];
 end
-mrr.redis_cmd(['HMSET ' worker_key ' ' worker_str])
+mrr.redis_cmd(['HMSET ' worker_key ' ' worker_str]);
 Hndl = figure('MenuBar', 'none', 'Name', worker_key,...
     'NumberTitle' ,'off', 'Units', 'normalized');%, 'WindowStyle', 'modal');
 uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized',...
@@ -42,20 +42,22 @@ mrr.redis_cmd(['HSET ' worker_key ' status kill'])
         task.command = mrr.redis_cmd(['HGET ' task_key ' command']);
         task.created_by = mrr.redis_cmd(['HGET ' task_key ' created_by']);
         task.created_on = mrr.redis_cmd(['HGET ' task_key ' created_on']);
-        mrr.redis_cmd(['HMSET ' task_key ...
-            ' started_on ' str_to_redis_str(datetime) ' worker ' worker_key]);
+        mrr.redis_cmd(['HMSET ' task_key ' started_on ' str_to_redis_str(datetime) ... 
+            ' worker ' worker_key ' status ongoing']);
         mrr.redis_cmd(['HMSET ' worker_key ' current_task ' task_key ' last_command ' str_to_redis_str(task.command)]);
         disp(task)
         try
             eval(task.command)
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key])
+            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key]);
             mrr.redis_cmd(['SADD finished_matlab_tasks ' task_key ]);
-            mrr.redis_cmd(['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime)]);
+            mrr.redis_cmd(['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ...
+                ' status finished']);
         catch err
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key])
+            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key]);
             mrr.redis_cmd(['SADD failed_matlab_tasks ' task_key ]);
-            mrr.redis_cmd(['HSET ' task_key ' failed_on ' str_to_redis_str(datetime)]);
-            mrr.redis_cmd(['HSET ' task_key ' err_msg ' str_to_redis_str(jsonencode(err))]);
+            mrr.redis_cmd(['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
+                ' err_msg ' str_to_redis_str(jsonencode(err)) ...
+                ' status failed']);
             disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
         end
 
