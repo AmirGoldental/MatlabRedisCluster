@@ -6,6 +6,7 @@ if "%1" == "" goto fill_params_path
 set params_path=%1
 :fill_params_path
 
+
 call :logger INFO load parameters from %params_path%
 for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
 
@@ -15,9 +16,8 @@ set cur_dir=!cur_dir:~0,-1!
 call :logger INFO check that matlab path exists 
 if not exist !matlab_path! (echo !matlab_path! does not exists & exit /b) 
 
-start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrr.join_as_worker"
-pause
-exit
+start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrr.join_as_worker %2"
+exit /s
 
 :run_and_set
 for /f "tokens=1,* delims= " %%a in ("%*") do set %1=%%b

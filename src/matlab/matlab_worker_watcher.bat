@@ -12,7 +12,6 @@ set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
 
-echo test
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
 call :logger INFO load parameters from %params_path%
@@ -44,7 +43,9 @@ if "%res%"=="failed" (
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
         ) else (
-            call :logger WARNING redis inconsistent, waiting
+            call :logger WARNING redis inconsistent, probably flushed, restart
+            call %~dp0%matlab_worker_wrapper.bat
+            exit /s
         ) 
         goto main_loop
     )
@@ -88,7 +89,7 @@ if "%res%"=="failed" (
 
         if "%matlab_restart_on_fail%"=="true" (
             call :send_redis hset !worker_key! status restart
-            call %~dp0%matlab_worker_wrapper.bat
+            call %~dp0%matlab_worker_wrapper.bat "" !worker_key!
         ) else (
             call :send_redis hset !worker_key! status dead
         )
