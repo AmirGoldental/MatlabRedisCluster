@@ -22,17 +22,19 @@ if isempty(keys{1})
     return
 end
 
+redis_outputs = mrr.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys));
+
 for key = keys'
     itter = itter + 1;
     output.key(itter,1) = string(key{1});
-    
-    if strcmp(list_name, 'finished') || strcmp(list_name, 'failed')
-        redis_output = mrr.redis_cmd(['HGETALL ' key{1}], 'cache_first',...
-            'cmd_prefix', redis_cmd_prefix);
-    else
-        redis_output = mrr.redis_cmd(['HGETALL ' key{1}], ...
-            'cmd_prefix', redis_cmd_prefix);
-    end
+    redis_output = redis_outputs{itter};
+%     if strcmp(list_name, 'finished') || strcmp(list_name, 'failed')
+%         redis_output = mrr.redis_cmd(['HGETALL ' key{1}], 'cache_first',...
+%             'cmd_prefix', redis_cmd_prefix);
+%     else
+%         redis_output = mrr.redis_cmd(['HGETALL ' key{1}], ...
+%             'cmd_prefix', redis_cmd_prefix);
+%     end
     
     obj_cells = split(redis_output, newline);
     for cell_idx = 1:2:(length(obj_cells)-1)
