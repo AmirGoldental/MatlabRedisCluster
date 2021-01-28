@@ -32,6 +32,9 @@ end
 mrr.redis_cmd(['HSET ' worker_key ' status kill'])
 
     function preform_task(worker_key)
+        clear functions
+        clear global
+        
         task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
         if isempty(task_key)
             pause(3)
@@ -59,8 +62,10 @@ mrr.redis_cmd(['HSET ' worker_key ' status kill'])
                 ' status failed']);
             disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
         end
-
+        
         mrr.redis_cmd(['HSET ' worker_key ' current_task None']);
+        
+        fclose all;
     end
 end
 

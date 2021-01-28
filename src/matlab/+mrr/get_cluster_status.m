@@ -10,15 +10,15 @@ end
 
 switch list_name
     case 'workers'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['keys worker:*']); 
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('keys worker:*'); 
     case 'pending'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['lrange pending_matlab_tasks 0 -1']);
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange pending_matlab_tasks 0 -1');
     case 'ongoing'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['lrange ongoing_matlab_tasks 0 -1']);   
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange ongoing_matlab_tasks 0 -1');   
     case 'finished'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS finished_matlab_tasks']);   
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS finished_matlab_tasks');   
     case 'failed'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd(['SMEMBERS failed_matlab_tasks']); 
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS failed_matlab_tasks'); 
     otherwise
         error('Unknown list_name')
 end
@@ -48,4 +48,20 @@ for key = keys'
     end
 end
 status = struct2table(output);
+
+switch list_name
+    case 'workers'
+        [~, sort_order] = sort(status.key);
+    case 'pending'
+        [~, sort_order] = sort(datetime(status.created_on));
+    case 'ongoing'
+        [~, sort_order] = sort(datetime(status.started_on));
+    case 'finished'
+        [~, sort_order] = sort(datetime(status.finished_on), 'descend');
+    case 'failed'
+        [~, sort_order] = sort(datetime(status.failed_on), 'descend');
+    otherwise
+        error('Unknown list_name')
+end
+status = status(sort_order,:);
 end
