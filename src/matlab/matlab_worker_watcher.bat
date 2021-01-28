@@ -72,12 +72,8 @@ if "%res%"=="failed" (
         exit /s
     )
 
-    if "!worker_status!"=="restart" (
-        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
-        taskkill /PID !matlab_pid!
-
-        call :move_current_task_to_failed !worker_key! "worker restart" 
-        call :send_redis hset !worker_key! status dead
+    if "!worker_status!"=="restart" (        
+        call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
 
         call :logger INFO worker restart
         call %~dp0%matlab_worker_wrapper.bat
@@ -85,11 +81,7 @@ if "%res%"=="failed" (
     )
 
     if "!worker_status!"=="kill" (
-        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
-        taskkill /PID !matlab_pid!
-		
-        call :move_current_task_to_failed !worker_key! "worker killed"        
-        call :send_redis hset !worker_key! status dead
+        call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         exit /s
     )
 
@@ -99,6 +91,20 @@ goto main_loop
 :logger
 for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
 echo [%1] %date%T%time% %ALL_BUT_FIRST%
+exit /b
+
+:kill_wait_and_deal_with_current_task
+call :logger INFO kill matlab worker %1 of pid=%2
+taskkill /F /PID %2
+
+:wait_check_pid_alive
+call :logger DEBUG still alive pid=%2
+call :is_pid_alive %2
+if !res!==on (goto wait_check_pid_alive)
+call :logger DEBUG process dead check move task to failed
+call :move_current_task_to_failed %1 "worker killed"        
+call :send_redis hset %1 status dead
+
 exit /b
 
 :move_current_task_to_failed
@@ -132,6 +138,7 @@ for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /nh /v /fi "IMAGENAME eq matlab.exe
 exit /b
 
 :is_pid_alive
+set res=off
 for /f "tokens=2 USEBACKQ" %%f IN (`tasklist /nh /fi "pid eq %1"`) do (
     if "%%f"=="%1" (
         set "res=on"
