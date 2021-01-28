@@ -1,12 +1,6 @@
-function status = get_cluster_status(list_name, clear_flag)
+function status = get_cluster_status(list_name)
 persistent cache 
-if isempty(cache)
-    cache = containers.Map;
-end
-if exist('clear_flag', 'var') && clear_flag
-    cache = [];
-    return;
-end
+cache = check_init_cache(cache);
 
 switch list_name
     case 'workers'
@@ -64,4 +58,18 @@ switch list_name
         error('Unknown list_name')
 end
 status = status(sort_order,:);
+end
+
+function cache = check_init_cache(cache)
+randomstr = char(randi([uint8('A') uint8('Z')],1,32));
+dbhash = mrr.redis_cmd(['get dbhash']); 
+while isempty(dbhash)
+    mrr.redis_cmd(['setnx dbhash ' randomstr]); 
+    dbhash = mrr.redis_cmd(['get dbhash']);
+end
+
+if isempty(cache) || ~cache.isKey('dbhash') || ~strcmp(dbhash, cache('dbhash'))
+    cache = containers.Map;
+    cache('dbhash') = dbhash;    
+end
 end
