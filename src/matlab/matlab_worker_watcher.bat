@@ -44,8 +44,13 @@ if "%res%"=="failed" (
             call :logger WARNING failed pinging redis, waiting
             goto main_loop
         ) else (
-            call :logger WARNING redis inconsistent, probably flushed, restart
-            goto worker_restart
+            call :logger WARNING redis inconsistent, probably flushed, restart            
+            call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
+            taskkill /PID !matlab_pid!
+
+            call :logger INFO worker restart
+            call %~dp0%matlab_worker_wrapper.bat
+            exit /s
         ) 
     )
     set worker_status=!res!
@@ -68,7 +73,6 @@ if "%res%"=="failed" (
     )
 
     if "!worker_status!"=="restart" (
-:worker_restart
         call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
         taskkill /PID !matlab_pid!
 

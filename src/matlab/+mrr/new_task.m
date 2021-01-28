@@ -7,7 +7,7 @@ if ~iscell(commands)
     commands = {commands};
 end
 
-[task_max_id, cmd_prefix] = mrr.redis_cmd(['incrby tasks_count ' num2str(length(commands))]);
+task_max_id = mrr.redis_cmd(['incrby tasks_count ' num2str(length(commands))]);
 task_max_id = str2double(task_max_id);
 task_ids = task_max_id-length(commands)+1:task_max_id;
 task_strs = cell(size(commands));
@@ -30,13 +30,9 @@ for i = 1:length(commands)
     tasks{i} = task;
 end
 
-cmds = cellfun(@(k, x) {['echo HMSET ' k ' ' x]}, task_keys, task_strs);
-cmd = strjoin(cmds, ' && ');
-
-% cmd = strjoin(cellfun(@(k, x) {['HMSET ' k ' ' x]}, task_keys, task_strs), char(10));
-system(['(' cmd ') | ' cmd_prefix]);
-
-mrr.redis_cmd(['lpush pending' '_tasks ' strjoin(cellfun(@(x) {['"' x '"']}, flip(task_keys)), ' ')]);
+cmds = cellfun(@(k, x) {['HMSET ' k ' ' x]}, task_keys, task_strs);
+cmds{end+1} = ['lpush pending' '_tasks ' strjoin(cellfun(@(x) {['"' x '"']}, flip(task_keys)), ' ')];
+mrr.redis_multi_cmd(cmds);
 
 if any(strcmpi('wait', varargin))
     for task = tasks
