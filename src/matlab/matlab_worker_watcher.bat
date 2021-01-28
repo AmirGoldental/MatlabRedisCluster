@@ -12,7 +12,6 @@ set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
 
-echo test
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
 call :logger INFO load parameters from %params_path%
@@ -43,48 +42,21 @@ if "%res%"=="failed" (
         call :send_redis ping
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
+            goto main_loop
         ) else (
-            call :logger WARNING redis inconsistent, waiting
+            call :logger WARNING redis inconsistent, probably flushed, restart
+            goto worker_restart
         ) 
-        goto main_loop
     )
     set worker_status=!res!
 
     call :logger VERBOSE matlab_status:!matlab_status! redis_status:!worker_status!
 
     :: main logic
-    if "!worker_status!"=="kill" if "!matlab_status!"=="on" (
-        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
-        taskkill /PID !matlab_pid!
-		
-        :: find and move current task to failed
-        call :send_redis hget !worker_key! current_task
-        if not "!res!"=="failed" if not "!res!"=="None" (       
-            set current_task=!res!
-            :: move task from ongoing to error and push error message
-            call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
-            call :send_redis sadd failed_matlab_tasks !current_task!
-            call :send_redis hset !current_task! failed_on "%date% %time%"
-            call :send_redis hset !current_task! err_msg "worker killed" 
-            call :send_redis hdel !worker_key! current_task
-        )
-        
-        call :send_redis hset !worker_key! status dead
-        exit /s
-    )
-
     if "!matlab_status!"=="off" (     
-        call :logger INFO matlab died
-        :: find and move current task to failed
-        call :send_redis hget !worker_key! current_task
-        if not "!res!"=="failed" if not "!res!"=="None" (
-            :: move task from ongoing to error and push error message
-            call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
-            call :send_redis sadd failed_matlab_tasks !current_task!
-            call :send_redis hset !current_task! failed_on "%date% %time%"
-            call :send_redis hset !current_task! err_msg "worker died" 
-            call :send_redis hdel !worker_key! current_task
-        )
+        call :logger INFO matlab died        
+        call :move_current_task_to_failed !worker_key! "worker died"
+        call :send_redis hset !worker_key! status dead
 
         if "%matlab_restart_on_fail%"=="true" (
             call :send_redis hset !worker_key! status restart
@@ -94,12 +66,48 @@ if "%res%"=="failed" (
         )
         exit /s
     )
+
+    if "!worker_status!"=="restart" (
+:worker_restart
+        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
+        taskkill /PID !matlab_pid!
+
+        call :move_current_task_to_failed !worker_key! "worker restart" 
+        call :send_redis hset !worker_key! status dead
+
+        call :logger INFO worker restart
+        call %~dp0%matlab_worker_wrapper.bat
+        exit /s
+    )
+
+    if "!worker_status!"=="kill" (
+        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
+        taskkill /PID !matlab_pid!
+		
+        call :move_current_task_to_failed !worker_key! "worker killed"        
+        call :send_redis hset !worker_key! status dead
+        exit /s
+    )
+
 goto main_loop
 
 :: =================== helper functions ========================
 :logger
 for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
 echo [%1] %date%T%time% %ALL_BUT_FIRST%
+exit /b
+
+:move_current_task_to_failed
+call :send_redis hget %1 current_task
+if not "!res!"=="failed" if not "!res!"=="None" (       
+    set current_task=!res!
+    :: move task from ongoing to error and push error message
+    call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
+    call :send_redis sadd failed_matlab_tasks !current_task!
+    call :send_redis hset !current_task! failed_on "%date% %time%"
+    call :send_redis hset !current_task! err_msg "%2" 
+    call :send_redis hset %1 current_task None
+)
 exit /b
 
 :get_parent_pid
