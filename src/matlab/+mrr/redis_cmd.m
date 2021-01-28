@@ -1,12 +1,27 @@
-function [output, redis_cmd_prefix] = redis_cmd(command, redis_cmd_prefix)
-if ~exist('redis_cmd_prefix', 'var')
+function [output, redis_cmd_prefix] = redis_cmd(command, varargin)
+
+strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
+varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
+
+if any(strcmpi('cmd_prefix', varargin))    
+    redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
+else
     conf_path = fullfile(fileparts(fileparts(mfilename('fullpath'))),'mrr_client.conf');
     conf = read_conf_file(conf_path);
     
     redis_cmd_prefix = [conf.redis_cli_path ' -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
 end
-[exit_flag, output] = system([redis_cmd_prefix char(command)]);
+redis_cmd = [redis_cmd_prefix char(command)];
+
+persistent cache
+if any(strcmpi('cache_first', varargin))
+    [exit_flag, output] = system_cache_first(redis_cmd);
+else
+    [exit_flag, output] = system_then_cache(redis_cmd);
+end
+
+
 
 if exit_flag == 1
     disp(output)
@@ -21,6 +36,51 @@ if strcmp(output(1:min(3,end)), 'ERR')
 end
 
 output = output(1:end-1);
+
+    function [exit_flag, output] = system_cache_first(redis_cmd)
+        % Check that DB was not flushed
+        dbhash = mrr.redis_cmd('get dbhash');
+        while isempty(mrr.redis_cmd('get dbhash'))
+            % DB is empty.
+            randomstr = char(randi([uint8('A') uint8('Z')], 1, 32));
+            mrr.redis_cmd(['setnx dbhash ' randomstr]);
+            dbhash = mrr.redis_cmd('get dbhash');
+        end
+        if isempty(cache) || ~cache.isKey('dbhash') || ~strcmp(dbhash, cache('dbhash'))
+            % DB was flushed, clean cache.
+            cache = containers.Map;
+            cache('dbhash') = dbhash;
+        end
+        
+        if cache.isKey(redis_cmd)
+            % Get from cache
+            cached_values = cache(redis_cmd);
+            exit_flag = cached_values.exit_flag;
+            output = cached_values.output;
+        else
+            % Get from system and cache
+            [exit_flag, output] = system(redis_cmd);
+            cached_values.exit_flag = exit_flag;
+            cached_values.output = output;
+            cache(redis_cmd) = cached_values;
+        end
+        
+    end
+
+    function [exit_flag, output] = system_then_cache(redis_cmd)
+        
+        if isempty(cache)
+            % Cache is clean.
+            cache = containers.Map;
+        end
+        
+        % Get from system and cache
+        [exit_flag, output] = system(redis_cmd);
+        cached_values.exit_flag = exit_flag;
+        cached_values.output = output;
+        cache(redis_cmd) = cached_values;
+        
+    end
 end
 
 
