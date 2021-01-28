@@ -1,4 +1,4 @@
-function [output, redis_cmd_prefix] = redis_multi_cmd(commands, redis_cmd_prefix)
+function [output, redis_cmd_prefix] = redis_bulk_cmd(commands, redis_cmd_prefix)
 if ~exist('redis_cmd_prefix', 'var')
     conf_path = fullfile(fileparts(fileparts(mfilename('fullpath'))),'mrr_client.conf');
     conf = read_conf_file(conf_path);
