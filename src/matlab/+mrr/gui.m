@@ -2,7 +2,7 @@ function gui()
 colors = struct();
 colors.background = '#9ba5ab';
 colors.list_background = '#F1F1F1';
-colors.red = '#ea5f47';
+colors.red = '#cf4229';
 colors.strong = '#1C4E80';
 colors.weak = '#A5D8DD';
 
