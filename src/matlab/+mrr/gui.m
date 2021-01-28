@@ -1,6 +1,6 @@
 function gui()
 fig = figure('Name', 'Matlab Redis Runner', 'MenuBar', 'none', 'Color' ,'#CFD8DC');
-fig.NumberTitle = 'off'; 
+fig.NumberTitle = 'off';
 fig.Units = 'normalized';
 fig.Position = [0.02 0.04 0.95 0.85];
 data = [];
@@ -14,21 +14,19 @@ filter_buttons.ongoing = uicontrol(fig, 'Style', 'pushbutton', ...
     'callback', @(~,~) filter_button_callback('ongoing'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.finished = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Finished Tasks', 'Units', 'normalized', 'Position', [0.01 0.82 0.1 0.0499],...
-    'callback', @(~,~) filter_button_callback('finished'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);  
+    'callback', @(~,~) filter_button_callback('finished'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.failed = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Failed Tasks', 'Units', 'normalized', 'Position', [0.01 0.77 0.1 0.0499],...
-    'callback', @(~,~) filter_button_callback('failed'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);  
+    'callback', @(~,~) filter_button_callback('failed'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.workers = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Workers', 'Units', 'normalized', 'Position', [0.01 0.72 0.1 0.0499],...
     'callback', @(~,~) filter_button_callback('workers'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
-delete_pending_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
-    'String', 'Delete task(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
-    'callback', @(~,~) delete_pending_tasks(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
-kill_worker_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
-    'String', 'Kill worker(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
-    'callback', @(~,~) kill_worker(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
+
+other_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#DD2C00',...
+    'String', 'Delete task(s)', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
+    'callback', @(~,~) other_callback(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
 details_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#303F9F',...
     'String', 'View details', 'Units', 'normalized', 'Position', [0.01 0.07 0.1 0.0499],...
@@ -39,9 +37,9 @@ refresh_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', '#0096
     'callback', @(~,~) refresh(), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
 command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
-     'FontName', 'Consolas', 'FontSize', 16, 'Max', 2,...
-     'Units', 'normalized', 'Position', [0.12 0.02 0.87 0.95], ... 
-     'Callback', @(~,~) listbox_callback, 'BackgroundColor', '#90A4AE', 'Value', 1);
+    'FontName', 'Consolas', 'FontSize', 16, 'Max', 2,...
+    'Units', 'normalized', 'Position', [0.12 0.02 0.87 0.95], ...
+    'Callback', @(~,~) listbox_callback, 'BackgroundColor', '#90A4AE', 'Value', 1);
 
 refresh()
 
@@ -50,64 +48,78 @@ refresh()
         gui_status.active_filter_button = category;
         structfun(@(button) set(button, 'BackgroundColor', '#9FA8DA'), filter_buttons)
         filter_buttons.(category).BackgroundColor = '#3949AB';
-        delete_pending_button.Visible = 'off';
-        kill_worker_button.Visible = 'off';
         command_list.Value = 1;
-        if isempty(data)
-            command_list.String = {};
-            return
-        end
+        command_list.String = {};
         switch category
             case 'pending'
-                command_list.String = strcat("[", data.created_on, "] (",...
-                    data.created_by, "): ", data.command);
-                delete_pending_button.Visible = 'on';
+                other_button.String = 'Delete Task(s)';
+                if ~isempty(data)
+                    command_list.String = strcat("[", data.created_on, "] (",...
+                        data.created_by, "): ", data.command);
+                end
             case 'ongoing'
-                command_list.String = strcat("[", data.started_on, "] (",...
-                    data.created_by, "->", data.worker, "): ", data.command);
+                other_button.String = 'Stop Task(s)';
+                if ~isempty(data)
+                    command_list.String = strcat("[", data.started_on, "] (",...
+                        data.created_by, "->", data.worker, "): ", data.command);
+                end
             case 'finished'
-                command_list.String = strcat("[", data.finished_on, "] (",...
-                    data.created_by, "->", data.worker, "): ", data.command);
+                other_button.String = 'Clear';
+                if ~isempty(data)
+                    command_list.String = strcat("[", data.finished_on, "] (",...
+                        data.created_by, "->", data.worker, "): ", data.command);
+                end
             case 'failed'
-                command_list.String = strcat("[",data.failed_on, "] (",...
-                    data.created_by, "->", data.worker, "): ", data.command);
+                other_button.String = 'Clear';
+                if ~isempty(data)
+                    command_list.String = strcat("[",data.failed_on, "] (",...
+                        data.created_by, "->", data.worker, "): ", data.command);
+                end
             case 'workers'
-                command_list.String = strcat("[", data.key, "] (", ...
-                    data.computer, "): ",data.status);
-                kill_worker_button.Visible = 'on';
+                other_button.String = 'Kill Worker(s)';
+                if ~isempty(data)
+                    command_list.String = strcat("[", data.key, "] (", ...
+                        data.computer, "): ",data.status);
+                end
         end
         
-        if strcmp(category, 'pending')
-            delete_pending_button.Visible = 'on';
-        else
-            
-        end
     end
-    
+
+
     function refresh()
         filter_button_callback(gui_status.active_filter_button)
         fig.Name = ['Matlab Redis Runner, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
     end
 
-    function delete_pending_tasks()
-        tasks_to_remove = command_list.Value;
-        for task_key = data.key(tasks_to_remove)'
-            mrr.redis_cmd(['LREM pending_matlab_tasks 0 "' char(task_key) '"'])
+    function other_callback()
+        switch gui_status.active_filter_button
+            case 'pending'
+                tasks_to_stop = command_list.Value;
+                for task_key = data.key(tasks_to_stop)'
+                    mrr.redis_cmd(['LREM pending_matlab_tasks 0 "' char(task_key) '"'])
+                end
+            case 'ongoing'
+                tasks_to_stop = command_list.Value;
+                for task_key = data.key(tasks_to_stop)'
+                    worker_key = mrr.redis_cmd(['HGET ' char(task_key) ' worker']);
+                    mrr.redis_cmd(['HSET ' char(worker_key) ' status restart'])
+                end
+            case 'finished'
+                mrr.redis_cmd(['DEL finished_matlab_tasks'])
+            case 'failed'
+                mrr.redis_cmd(['DEL failed_matlab_tasks'])
+            case 'workers'
+                workers_to_kill = command_list.Value;
+                for worker_key = data.key(workers_to_kill)'
+                    if strcmpi(mrr.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
+                        mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+                    end
+                end
         end
-        
         refresh()
     end
 
 
-    function kill_worker()
-        workers_to_kill = command_list.Value;
-        for worker_key = data.key(workers_to_kill)'
-            if strcmpi(mrr.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
-                mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
-            end
-        end
-        refresh()
-    end
 
     function details()
         entries = command_list.Value;
