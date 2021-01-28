@@ -13,8 +13,12 @@ for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
 set cur_dir=%~dp0
 set cur_dir=!cur_dir:~0,-1!
 
-@REM call :logger INFO check that matlab path exists 
-@REM if not exist !matlab_path! (echo !matlab_path! does not exists & exit /b) 
+call :logger INFO check that matlab path exists 
+call !matlab_path! -h || goto matlab_ok
+echo could not find matlab in !matlab_path!
+pause
+exit /s
+:matlab_ok
 
 start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrr.join_as_worker"
 timeout /t 30
