@@ -6,13 +6,13 @@ switch list_name
     case 'workers'
         [keys, redis_cmd_prefix] = mrr.redis_cmd('keys worker:*'); 
     case 'pending'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange pending_matlab_tasks 0 -1');
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange pending_tasks 0 -1');
     case 'ongoing'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange ongoing_matlab_tasks 0 -1');   
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange ongoing_tasks 0 -1');   
     case 'finished'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS finished_matlab_tasks');   
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS finished_tasks');   
     case 'failed'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS failed_matlab_tasks'); 
+        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS failed_tasks'); 
     otherwise
         error('Unknown list_name')
 end
@@ -61,9 +61,9 @@ status = status(sort_order,:);
 end
 
 function cache = check_init_cache(cache)
-randomstr = char(randi([uint8('A') uint8('Z')],1,32));
 dbhash = mrr.redis_cmd(['get dbhash']); 
 while isempty(dbhash)
+    randomstr = char(randi([uint8('A') uint8('Z')], 1, 32));
     mrr.redis_cmd(['setnx dbhash ' randomstr]); 
     dbhash = mrr.redis_cmd(['get dbhash']);
 end

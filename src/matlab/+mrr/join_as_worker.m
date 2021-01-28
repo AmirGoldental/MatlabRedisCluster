@@ -35,7 +35,7 @@ mrr.redis_cmd(['HSET ' worker_key ' status kill'])
         clear functions
         clear global
         
-        task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
+        task_key = mrr.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
         if isempty(task_key)
             pause(3)
             return
@@ -50,13 +50,13 @@ mrr.redis_cmd(['HSET ' worker_key ' status kill'])
         disp(task)
         try
             eval(task.command)
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key]);
-            mrr.redis_cmd(['SADD finished_matlab_tasks ' task_key ]);
+            mrr.redis_cmd(['LREM ongoing_tasks 0 ' task_key]);
+            mrr.redis_cmd(['SADD finished_tasks ' task_key ]);
             mrr.redis_cmd(['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ...
                 ' status finished']);
         catch err
-            mrr.redis_cmd(['LREM ongoing_matlab_tasks 0 ' task_key]);
-            mrr.redis_cmd(['SADD failed_matlab_tasks ' task_key ]);
+            mrr.redis_cmd(['LREM ongoing_tasks 0 ' task_key]);
+            mrr.redis_cmd(['SADD failed_tasks ' task_key ]);
             mrr.redis_cmd(['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
                 ' err_msg ' str_to_redis_str(jsonencode(err)) ...
                 ' status failed']);

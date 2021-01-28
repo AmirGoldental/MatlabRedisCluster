@@ -102,10 +102,11 @@ call :send_redis hget %1 current_task
 if not "!res!"=="failed" if not "!res!"=="None" (       
     set current_task=!res!
     :: move task from ongoing to error and push error message
-    call :send_redis lrem ongoing_matlab_tasks 0 !current_task!
-    call :send_redis sadd failed_matlab_tasks !current_task!
     call :send_redis hset !current_task! failed_on "%date% %time%"
-    call :send_redis hset !current_task! err_msg "%2" 
+    call :send_redis hset !current_task! status failed
+    call :send_redis hset !current_task! err_msg %2
+    call :send_redis lrem ongoing_tasks 0 !current_task!
+    call :send_redis sadd failed_tasks !current_task!
     call :send_redis hset %1 current_task None
 )
 exit /b

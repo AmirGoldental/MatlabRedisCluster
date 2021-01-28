@@ -96,7 +96,7 @@ refresh()
             case 'pending'
                 tasks_to_stop = command_list.Value;
                 for task_key = data.key(tasks_to_stop)'
-                    mrr.redis_cmd(['LREM pending_matlab_tasks 0 "' char(task_key) '"'])
+                    mrr.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
                 end
             case 'ongoing'
                 tasks_to_stop = command_list.Value;
@@ -105,9 +105,9 @@ refresh()
                     mrr.redis_cmd(['HSET ' char(worker_key) ' status restart'])
                 end
             case 'finished'
-                mrr.redis_cmd(['DEL finished_matlab_tasks'])
+                mrr.redis_cmd(['DEL finished_tasks'])
             case 'failed'
-                mrr.redis_cmd(['DEL failed_matlab_tasks'])
+                mrr.redis_cmd(['DEL failed_tasks'])
             case 'workers'
                 workers_to_kill = command_list.Value;
                 for worker_key = data.key(workers_to_kill)'
