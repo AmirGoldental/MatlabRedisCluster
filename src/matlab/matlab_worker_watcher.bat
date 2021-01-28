@@ -42,26 +42,17 @@ if "%res%"=="failed" (
         call :send_redis ping
         if "!res!"=="failed" (
             call :logger WARNING failed pinging redis, waiting
+            goto main_loop
         ) else (
-            call :logger WARNING redis inconsistent, probably flushed, rejoin
-            :: TODO
+            call :logger WARNING redis inconsistent, probably flushed, restart
+            goto worker_restart
         ) 
-        goto main_loop
     )
     set worker_status=!res!
 
     call :logger VERBOSE matlab_status:!matlab_status! redis_status:!worker_status!
 
     :: main logic
-    if "!worker_status!"=="restart" (
-        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
-        taskkill /PID !matlab_pid!
-        call :move_current_task_to_failed !worker_key! "worker restart" 
-        call :logger INFO worker restart
-        call %~dp0%matlab_worker_wrapper.bat "" !worker_key!
-        exit /s
-    )
-
     if "!matlab_status!"=="off" (     
         call :logger INFO matlab died        
         call :move_current_task_to_failed !worker_key! "worker died"
@@ -69,10 +60,23 @@ if "%res%"=="failed" (
 
         if "%matlab_restart_on_fail%"=="true" (
             call :send_redis hset !worker_key! status restart
-            call %~dp0%matlab_worker_wrapper.bat "" !worker_key!
+            call %~dp0%matlab_worker_wrapper.bat
         ) else (
             call :send_redis hset !worker_key! status dead
         )
+        exit /s
+    )
+
+    if "!worker_status!"=="restart" (
+:worker_restart
+        call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
+        taskkill /PID !matlab_pid!
+
+        call :move_current_task_to_failed !worker_key! "worker restart" 
+        call :send_redis hset !worker_key! status dead
+
+        call :logger INFO worker restart
+        call %~dp0%matlab_worker_wrapper.bat
         exit /s
     )
 

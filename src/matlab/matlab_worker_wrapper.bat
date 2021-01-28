@@ -16,7 +16,7 @@ set cur_dir=!cur_dir:~0,-1!
 call :logger INFO check that matlab path exists 
 if not exist !matlab_path! (echo !matlab_path! does not exists & exit /b) 
 
-start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrr.join_as_worker %2"
+start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrr.join_as_worker"
 exit /s
 
 :run_and_set
