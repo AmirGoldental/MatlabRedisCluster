@@ -1,4 +1,5 @@
 function tasks = new_task(commands, varargin)
+commands = reshape(commands,1,[]);
 varargin = cellfun(@(x) char(x), varargin, 'UniformOutput', false);
 
 tasks = cell(0);
