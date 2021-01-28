@@ -18,7 +18,6 @@ if iscell(command)
     cmds = cellfun(@(x) {['echo ' x]}, command);
     cmd = char(strjoin(cmds, ' && echo echo -REDIS-CMD-BREAK- && '));
     [exit_flag, output] = system(['(' cmd ') | ' redis_cmd_prefix]);
-    output = split(output, '-REDIS-CMD-BREAK-');
 else
     redis_cmd = [redis_cmd_prefix char(command)];
 
@@ -41,6 +40,9 @@ if strcmp(output(1:min(3,end)), 'ERR')
     error(output(1:end-2));
 end
 
+if iscell(command)
+    output = split(output, '-REDIS-CMD-BREAK-');
+end
 output = strip(output);
 
     function [exit_flag, output] = system_cache_first(redis_cmd)
