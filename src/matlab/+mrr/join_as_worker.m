@@ -34,7 +34,6 @@ mrr.redis_cmd(['HSET ' worker_key ' status kill'])
     function preform_task(worker_key)
         clear functions
         clear global
-        clear import
         
         task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
         if isempty(task_key)
