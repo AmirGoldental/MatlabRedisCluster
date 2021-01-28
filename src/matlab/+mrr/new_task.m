@@ -32,8 +32,9 @@ end
 
 cmds = cellfun(@(k, x) {['echo HMSET ' k ' ' x]}, task_keys, task_strs);
 cmd = strjoin(cmds, ' && ');
-system(['(' cmd ') | ' cmd_prefix]);
 
+% cmd = strjoin(cellfun(@(k, x) {['HMSET ' k ' ' x]}, task_keys, task_strs), char(10));
+system(['(' cmd ') | ' cmd_prefix]);
 
 mrr.redis_cmd(['lpush pending' '_tasks ' strjoin(cellfun(@(x) {['"' x '"']}, flip(task_keys)), ' ')]);
 
