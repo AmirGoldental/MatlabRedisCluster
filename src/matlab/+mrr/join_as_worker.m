@@ -23,7 +23,7 @@ Hndl = worker_figure(worker_key);
 get_worker_status = @() mrr.redis_cmd(['HGET ' worker_key ' status']);
 
 while strcmp(get_worker_status(), 'active')
-    task_key = mrr.redis_cmd('RPOPLPUSH pending_matlab_tasks ongoing_matlab_tasks');
+    task_key = mrr.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
     
     if isempty(task_key)
         pause(3)
