@@ -138,7 +138,9 @@ refresh()
 
     function details()
         entries = command_list.Value;
-        
+        if isempty(data)
+            return
+        end
         for entry = entries(:)'
             strcells = strcat(fieldnames(table2struct(data(entry,:))), ' : "', cellstr(table2cell(data(entry,:))'), '"');
             Hndl = figure('MenuBar', 'none', 'Name', 'details',...
