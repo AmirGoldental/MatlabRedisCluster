@@ -1,11 +1,10 @@
 function gui()
 colors = struct();
-colors.background = '#7E909A';
+colors.background = '#9ba5ab';
 colors.list_background = '#F1F1F1';
 colors.red = '#ea5f47';
-colors.green = '#A5D8DD';
 colors.strong = '#1C4E80';
-colors.weak = '#0091D5';
+colors.weak = '#A5D8DD';
 
 fig = figure('Name', 'Matlab Redis Runner', 'MenuBar', 'none', 'Color', colors.background);
 fig.NumberTitle = 'off';
@@ -31,11 +30,11 @@ filter_buttons.workers = uicontrol(fig, 'Style', 'pushbutton', ...
     'callback', @(~,~) filter_button_callback('workers'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 
 
-details_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.green,...
+details_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.weak,...
     'String', 'View details', 'Units', 'normalized', 'Position', [0.01 0.17 0.1 0.0499],...
     'callback', @(~,~) details, 'ForegroundColor', 'k', 'FontName', 'Consolas', 'FontSize', 12);
 
-refresh_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.green,...
+refresh_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.weak,...
     'String', 'Refresh', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
     'callback', @(~,~) refresh(), 'ForegroundColor', 'k', 'FontName', 'Consolas', 'FontSize', 12);
 
@@ -61,7 +60,9 @@ refresh()
         data = mrr.get_cluster_status(category);
         gui_status.active_filter_button = category;
         structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
+        structfun(@(button) set(button, 'ForegroundColor', 'k'), filter_buttons)
         filter_buttons.(category).BackgroundColor = colors.strong;
+        filter_buttons.(category).ForegroundColor = 'w';
         command_list.Value = 1;
         command_list.String = {};
         switch category
