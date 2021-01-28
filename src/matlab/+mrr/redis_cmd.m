@@ -1,4 +1,5 @@
 function [output, redis_cmd_prefix] = redis_cmd(command, varargin)
+persistent cache
 
 strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
 varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
@@ -12,16 +13,21 @@ else
     redis_cmd_prefix = [conf.redis_cli_path ' -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
 end
-redis_cmd = [redis_cmd_prefix char(command)];
 
-persistent cache
-if any(strcmpi('cache_first', varargin))
-    [exit_flag, output] = system_cache_first(redis_cmd);
+if iscell(command)
+    cmds = cellfun(@(x) {['echo ' x]}, command);
+    cmd = char(strjoin(cmds, ' && echo echo -REDIS-CMD-BREAK- && '));
+    [exit_flag, output] = system(['(' cmd ') | ' redis_cmd_prefix]);
+    output = split(output, '-REDIS-CMD-BREAK-');
 else
-    [exit_flag, output] = system_then_cache(redis_cmd);
+    redis_cmd = [redis_cmd_prefix char(command)];
+
+    if any(strcmpi('cache_first', varargin))
+        [exit_flag, output] = system_cache_first(redis_cmd);
+    else
+        [exit_flag, output] = system_then_cache(redis_cmd);
+    end    
 end
-
-
 
 if exit_flag == 1
     disp(output)
@@ -35,7 +41,7 @@ if strcmp(output(1:min(3,end)), 'ERR')
     error(output(1:end-2));
 end
 
-output = output(1:end-1);
+output = strip(output);
 
     function [exit_flag, output] = system_cache_first(redis_cmd)
         % Check that DB was not flushed

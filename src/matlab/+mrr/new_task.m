@@ -32,7 +32,7 @@ end
 
 cmds = cellfun(@(k, x) {['HMSET ' k ' ' x]}, task_keys, task_strs);
 cmds{end+1} = ['lpush pending' '_tasks ' strjoin(cellfun(@(x) {['"' x '"']}, flip(task_keys)), ' ')];
-mrr.redis_bulk_cmd(cmds);
+mrr.redis_cmd(cmds);
 
 if any(strcmpi('wait', varargin))
     for task = tasks
