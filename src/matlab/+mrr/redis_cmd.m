@@ -36,13 +36,17 @@ if strcmp(output(1:min(26,end)), 'Could not connect to Redis')
     error('Could not connect to Redis')
 end
 
-if strcmp(output(1:min(3,end)), 'ERR')
-    error(output(1:end-2));
-end
-
 if iscell(command)
     output = split(output, '-REDIS-CMD-BREAK-');
+    if any(strncmp(output, 'ERR', 3))
+        error(strjoin(output, newline));
+    end
 end
+
+if strncmp(output, 'ERR', 3)
+    error(output);
+end
+
 output = strip(output);
 
     function [exit_flag, output] = system_cache_first(redis_cmd)
