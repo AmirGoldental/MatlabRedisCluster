@@ -64,10 +64,7 @@ if "%res%"=="failed" (
         call :send_redis hset !worker_key! status dead
 
         if "%matlab_restart_on_fail%"=="true" (
-            call :send_redis hset !worker_key! status restart
             call %~dp0%matlab_worker.bat
-        ) else (
-            call :send_redis hset !worker_key! status dead
         )
         exit /s
     )

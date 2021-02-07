@@ -7,10 +7,16 @@ varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_
 if any(strcmpi('cmd_prefix', varargin))    
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
-    conf_path = fullfile(fileparts(fileparts(mfilename('fullpath'))),'mrr_client.conf');
+    mrr_path = fileparts(fileparts(mfilename('fullpath')));
+    conf_path = fullfile(mrr_path,'mrr_client.conf');
     conf = read_conf_file(conf_path);
-    
-    redis_cmd_prefix = [conf.redis_cli_path ' -h ' conf.redis_hostname ' -p '...
+    redis_cli_path = dir(conf.redis_cli_path);
+    if isempty(redis_cli_path)
+        redis_cli_path = dir(fullfile(mrr_path, conf.redis_cli_path));
+    end
+    assert(length(redis_cli_path) == 1, 'Could not find redis-cli.exe');
+    redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
+    redis_cmd_prefix = [redis_cli_path ' -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
 end
 
