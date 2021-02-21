@@ -1,5 +1,5 @@
 function redis_str = str_to_redis_str(str)
-special = '"';
+special = '"\';
 redis_str = '';
 for l = char(str)
     if ~isempty(find(special == l, 1))
