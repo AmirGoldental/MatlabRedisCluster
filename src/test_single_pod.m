@@ -14,7 +14,7 @@ catch err
 end
 
 %% Test 2: test redis server init
-system(['start "redis_server" /D "' redis_server_dir '" redis-server.bat']);
+system(['start "redis_server" /D "' redis_server_dir '" start_mrc_server.bat']);
 for i = 1:10
     output = 'wrong';
     try

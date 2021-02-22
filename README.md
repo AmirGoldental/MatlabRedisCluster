@@ -7,7 +7,7 @@ Lightweight Matlab distributed computing based on Redis
 ## Quick start  
 - On one computer run 
     ```
-    ./src/redis_server/redis_server.bat
+    ./src/redis_server/start_mrc_server.bat
     ``` 
     to start the redis server.   
   
