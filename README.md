@@ -1,4 +1,4 @@
-# MatlabRedisRunner
+# MatlabRedisCluster
 Lightweight Matlab distributed computing based on Redis  
 
 ![image](https://user-images.githubusercontent.com/50057077/106132364-8921fb80-616c-11eb-9013-93a5585bef7d.png)  
