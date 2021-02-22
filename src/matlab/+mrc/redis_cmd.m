@@ -4,6 +4,7 @@ persistent cache
 strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
 varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
 
+%% prepare cmd_prefix
 if any(strcmpi('cmd_prefix', varargin))    
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
@@ -21,9 +22,31 @@ else
 end
 
 if iscell(command)
-    cmds = cellfun(@(x) {['echo ' x]}, command);
-    cmd = char(strjoin(cmds, ' && echo echo -REDIS-CMD-BREAK- && '));
-    [exit_flag, output] = system(['(' cmd ') | ' redis_cmd_prefix]);
+    cmd = '';
+    output = '';
+    for command_idx = 1:numel(command)
+        this_command = command{command_idx};
+        if isempty(cmd)
+            cmd = ['echo ' this_command];
+        else
+            cmd = [cmd ' && echo echo -REDIS-CMD-BREAK- && echo ' this_command ];
+        end
+        
+        if (length(cmd) + length(command{min(command_idx,end)})) > 7900 || command_idx == numel(command)
+            [this_exit_flag, this_output] = system(['(' cmd ') | ' redis_cmd_prefix]);
+            
+            if strcmp(this_output(1:min(26,end)), 'Could not connect to Redis')
+                error('Could not connect to Redis')
+            end
+            output = [output this_output newline '-REDIS-CMD-BREAK-' newline];
+            cmd = '';
+        end
+    end
+    output = split(output, '-REDIS-CMD-BREAK-');
+    if any(strncmp(output, 'ERR', 3))
+        % Todo: better pinpoint error
+        error(strjoin(output, newline));
+    end
 else
     redis_cmd = [redis_cmd_prefix char(command)];
 
@@ -32,25 +55,16 @@ else
     else
         [exit_flag, output] = system_then_cache(redis_cmd);
     end    
-end
-
-if exit_flag == 1
-    disp(output)
-end
-
-if strcmp(output(1:min(26,end)), 'Could not connect to Redis')
-    error('Could not connect to Redis')
-end
-
-if iscell(command)
-    output = split(output, '-REDIS-CMD-BREAK-');
-    if any(strncmp(output, 'ERR', 3))
-        error(strjoin(output, newline));
+    if exit_flag == 1
+        disp(output)
     end
-end
+    if strcmp(output(1:min(26,end)), 'Could not connect to Redis')
+        error('Could not connect to Redis')
+    end
+    if strncmp(output, 'ERR', 3)
+        error(output);
+    end
 
-if strncmp(output, 'ERR', 3)
-    error(output);
 end
 
 output = strip(output);
