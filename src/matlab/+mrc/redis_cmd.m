@@ -7,12 +7,12 @@ varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_
 if any(strcmpi('cmd_prefix', varargin))    
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
-    mrr_path = fileparts(fileparts(mfilename('fullpath')));
-    conf_path = fullfile(mrr_path,'mrr_client.conf');
+    mrc_path = fileparts(fileparts(mfilename('fullpath')));
+    conf_path = fullfile(mrc_path,'mrc_client.conf');
     conf = read_conf_file(conf_path);
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
-        redis_cli_path = dir(fullfile(mrr_path, conf.redis_cli_path));
+        redis_cli_path = dir(fullfile(mrc_path, conf.redis_cli_path));
     end
     assert(length(redis_cli_path) == 1, 'Could not find redis-cli.exe');
     redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
@@ -57,12 +57,12 @@ output = strip(output);
 
     function [exit_flag, output] = system_cache_first(redis_cmd)
         % Check that DB was not flushed
-        dbhash = mrr.redis_cmd('get dbhash');
-        while isempty(mrr.redis_cmd('get dbhash'))
+        dbhash = mrc.redis_cmd('get dbhash');
+        while isempty(mrc.redis_cmd('get dbhash'))
             % DB is empty.
             randomstr = char(randi([uint8('A') uint8('Z')], 1, 32));
-            mrr.redis_cmd(['setnx dbhash ' randomstr]);
-            dbhash = mrr.redis_cmd('get dbhash');
+            mrc.redis_cmd(['setnx dbhash ' randomstr]);
+            dbhash = mrc.redis_cmd('get dbhash');
         end
         if isempty(cache) || ~cache.isKey('dbhash') || ~strcmp(dbhash, cache('dbhash'))
             % DB was flushed, clean cache.

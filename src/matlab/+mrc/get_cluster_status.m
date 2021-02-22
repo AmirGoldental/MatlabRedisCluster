@@ -2,15 +2,15 @@ function status = get_cluster_status(list_name)
 
 switch list_name
     case 'workers'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('keys worker:*'); 
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('keys worker:*'); 
     case 'pending'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange pending_tasks 0 -1');
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange pending_tasks 0 -1');
     case 'ongoing'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('lrange ongoing_tasks 0 -1');   
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange ongoing_tasks 0 -1');   
     case 'finished'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS finished_tasks');   
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('SMEMBERS finished_tasks');   
     case 'failed'
-        [keys, redis_cmd_prefix] = mrr.redis_cmd('SMEMBERS failed_tasks'); 
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('SMEMBERS failed_tasks'); 
     otherwise
         error('Unknown list_name')
 end
@@ -22,17 +22,17 @@ if isempty(keys{1})
     return
 end
 
-redis_outputs = mrr.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys));
+redis_outputs = mrc.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys));
 
 for key = keys'
     itter = itter + 1;
     output.key(itter,1) = string(key{1});
     redis_output = redis_outputs{itter};
 %     if strcmp(list_name, 'finished') || strcmp(list_name, 'failed')
-%         redis_output = mrr.redis_cmd(['HGETALL ' key{1}], 'cache_first',...
+%         redis_output = mrc.redis_cmd(['HGETALL ' key{1}], 'cache_first',...
 %             'cmd_prefix', redis_cmd_prefix);
 %     else
-%         redis_output = mrr.redis_cmd(['HGETALL ' key{1}], ...
+%         redis_output = mrc.redis_cmd(['HGETALL ' key{1}], ...
 %             'cmd_prefix', redis_cmd_prefix);
 %     end
     

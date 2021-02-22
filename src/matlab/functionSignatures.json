@@ -1,20 +1,65 @@
 {
-  "mrr.new_task":
-  {
-     "inputs":
-     [
-        {"name":"commands",  "kind":"required", "type":[["char"], ["cell"]]},
-        {"name":"wait",  "kind":"flag", "type":["char", "choices={'wait'}"] },
-        {"name":"task_type",  "kind":"flag", "type":["char", "choices={'matlab, batch'}"] }
-     ]
-  },
-  "mrr.redis_cmd":
-  {
-     "inputs":
-     [
-        {"name":"commands",  "kind":"required", "type":[["char"], ["cell"]]},
-        {"name":"cache_strategy",  "kind":"flag", "type":["char", "choices={'cache_first'}"] },
-        {"name":"cmd_prefix",  "kind":"namevalue", "type":["char"] }
-     ]
-  }
+   "mrc.new_task": {
+      "inputs": [
+         {
+            "name": "commands",
+            "kind": "required",
+            "type": [
+               [
+                  "char"
+               ],
+               [
+                  "cell"
+               ]
+            ]
+         },
+         {
+            "name": "wait",
+            "kind": "flag",
+            "type": [
+               "char",
+               "choices={'wait'}"
+            ]
+         },
+         {
+            "name": "task_type",
+            "kind": "flag",
+            "type": [
+               "char",
+               "choices={'matlab, batch'}"
+            ]
+         }
+      ]
+   },
+   "mrc.redis_cmd": {
+      "inputs": [
+         {
+            "name": "commands",
+            "kind": "required",
+            "type": [
+               [
+                  "char"
+               ],
+               [
+                  "cell"
+               ]
+            ]
+         },
+         {
+            "name": "cache_strategy",
+            "kind": "flag",
+            "type": [
+               "char",
+               "choices={'cache_first'}"
+            ]
+         },
+         {
+            "name": "cmd_prefix",
+            "kind": "namevalue",
+            "type": [
+               "char"
+            ]
+         }
+      ]
+   }
 }

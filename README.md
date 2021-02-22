@@ -16,4 +16,4 @@ Lightweight Matlab distributed computing based on Redis
     ./src/matlab/matlab_worker_wrapper.bat
     ``` 
     to start run a worker on that computer. Can be done several times.  
-- On any computer add './src/matlab/' to matlab path and run `mrr.new_cmd("disp('hello world')")`.  
+- On any computer add './src/matlab/' to matlab path and run `mrc.new_cmd("disp('hello world')")`.  

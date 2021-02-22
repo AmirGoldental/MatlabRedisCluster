@@ -57,7 +57,7 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
 refresh()
 
     function filter_button_callback(category)
-        data = mrr.get_cluster_status(category);
+        data = mrc.get_cluster_status(category);
         gui_status.active_filter_button = category;
         structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
         structfun(@(button) set(button, 'ForegroundColor', 'k'), filter_buttons)
@@ -111,23 +111,23 @@ refresh()
             case 'pending'
                 tasks_to_stop = command_list.Value;
                 for task_key = data.key(tasks_to_stop)'
-                    mrr.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
+                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
                 end
             case 'ongoing'
                 tasks_to_stop = command_list.Value;
                 for task_key = data.key(tasks_to_stop)'
-                    worker_key = mrr.redis_cmd(['HGET ' char(task_key) ' worker']);
-                    mrr.redis_cmd(['HSET ' char(worker_key) ' status restart'])
+                    worker_key = mrc.redis_cmd(['HGET ' char(task_key) ' worker']);
+                    mrc.redis_cmd(['HSET ' char(worker_key) ' status restart'])
                 end
             case 'finished'
-                mrr.redis_cmd(['DEL finished_tasks'])
+                mrc.redis_cmd(['DEL finished_tasks'])
             case 'failed'
-                mrr.redis_cmd(['DEL failed_tasks'])
+                mrc.redis_cmd(['DEL failed_tasks'])
             case 'workers'
                 workers_to_kill = command_list.Value;
                 for worker_key = data.key(workers_to_kill)'
-                    if strcmpi(mrr.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
-                        mrr.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
+                        mrc.redis_cmd(['HSET ' char(worker_key) ' status kill'])
                     end
                 end
         end
@@ -159,7 +159,7 @@ refresh()
     end
 
     function restart_cluster()
-        mrr.flush_db;
+        mrc.flush_db;
         refresh;
     end
 end

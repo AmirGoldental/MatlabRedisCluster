@@ -7,7 +7,7 @@ if ~iscell(commands)
     commands = {commands};
 end
 
-task_max_id = mrr.redis_cmd(['incrby tasks_count ' num2str(length(commands))]);
+task_max_id = mrc.redis_cmd(['incrby tasks_count ' num2str(length(commands))]);
 task_max_id = str2double(task_max_id);
 task_ids = task_max_id-length(commands)+1:task_max_id;
 task_strs = cell(size(commands));
@@ -32,14 +32,14 @@ end
 
 cmds = cellfun(@(k, x) {['HMSET ' k ' ' x]}, task_keys, task_strs);
 cmds{end+1} = ['lpush pending' '_tasks ' strjoin(cellfun(@(x) {['"' x '"']}, flip(task_keys)), ' ')];
-mrr.redis_cmd(cmds);
+mrc.redis_cmd(cmds);
 
 if any(strcmpi('wait', varargin))
     for task = tasks
-        task_status = mrr.redis_cmd(['HGET ' task{1}.key ' status']);
+        task_status = mrc.redis_cmd(['HGET ' task{1}.key ' status']);
         while any(strcmpi(task_status,{'pending', 'ongoing'}))
             pause(3)
-            task_status = mrr.redis_cmd(['HGET ' task{1}.key ' status']);
+            task_status = mrc.redis_cmd(['HGET ' task{1}.key ' status']);
         end
     end
 end
