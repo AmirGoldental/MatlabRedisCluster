@@ -1,10 +1,18 @@
-function status = get_cluster_status(list_name)
+function [status, cluster_status] = get_cluster_status(list_name)
+pending_elements2fetch = num2str(70);
+[numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
+    'LLEN ongoing_tasks', 'SCARD finished_tasks', 'SCARD failed_tasks'});
+cluster_status.num_pending = numeric_stats(1);
+cluster_status.num_ongoing = numeric_stats(2);
+cluster_status.num_finished = numeric_stats(3);
+cluster_status.num_failed = numeric_stats(4);
+
 
 switch list_name
     case 'workers'
         [keys, redis_cmd_prefix] = mrc.redis_cmd('keys worker:*'); 
     case 'pending'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange pending_tasks 0 -1');
+        [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange pending_tasks 0 ' pending_elements2fetch]);
     case 'ongoing'
         [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange ongoing_tasks 0 -1');   
     case 'finished'
@@ -22,7 +30,7 @@ if isempty(keys{1})
     return
 end
 
-redis_outputs = mrc.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys));
+redis_outputs = mrc.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys), 'cmd_prefix', redis_cmd_prefix);
 
 for key = keys'
     itter = itter + 1;
