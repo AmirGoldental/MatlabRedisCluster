@@ -49,7 +49,7 @@ if "%res%"=="failed" (
             taskkill /PID !matlab_pid!
 
             call :logger INFO worker restart
-            call %~dp0%matlab_worker.bat
+            call %~dp0%start_matlab_worker.bat
             exit /s
         ) 
     )
@@ -64,7 +64,7 @@ if "%res%"=="failed" (
         call :send_redis hset !worker_key! status dead
 
         if "%matlab_restart_on_fail%"=="true" (
-            call %~dp0%matlab_worker.bat
+            call %~dp0%start_matlab_worker.bat
         )
         exit /s
     )
@@ -73,7 +73,7 @@ if "%res%"=="failed" (
         call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
 
         call :logger INFO worker restart
-        call %~dp0%matlab_worker.bat
+        call %~dp0%start_matlab_worker.bat
         exit /s
     )
 

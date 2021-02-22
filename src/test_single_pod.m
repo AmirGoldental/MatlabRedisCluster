@@ -35,7 +35,7 @@ output = mrr.redis_cmd('get tmp');
 assert(isempty(output), 'flush_db did not delete simple tmp val in redis');
 
 %% Test 4: worker simple tests
-system(['start "worker" /D "' mrr_dir '" matlab_worker.bat']);
+system(['start "worker" /D "' mrr_dir '" start_matlab_worker.bat']);
 for i = 1:10
     worker = mrr.redis_cmd('keys worker:*');
     if ~isempty(worker)
