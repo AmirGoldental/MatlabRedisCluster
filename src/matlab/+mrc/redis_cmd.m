@@ -5,7 +5,7 @@ strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
 varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
 
 %% prepare cmd_prefix
-if any(strcmpi('cmd_prefix', varargin))    
+if any(strcmpi('cmd_prefix', varargin))
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
@@ -38,23 +38,29 @@ if iscell(command)
             if strcmp(this_output(1:min(26,end)), 'Could not connect to Redis')
                 error('Could not connect to Redis')
             end
-            output = [output this_output newline '-REDIS-CMD-BREAK-' newline];
+            if isempty(output)
+                output = [this_output '-REDIS-CMD-BREAK-'];
+            else
+                output = [output newline this_output '-REDIS-CMD-BREAK-'];
+            end
+            
             cmd = '';
         end
     end
     output = split(output, '-REDIS-CMD-BREAK-');
+    output(end) = [];
     if any(strncmp(output, 'ERR', 3))
         % Todo: better pinpoint error
         error(strjoin(output, newline));
     end
 else
     redis_cmd = [redis_cmd_prefix char(command)];
-
+    
     if any(strcmpi('cache_first', varargin))
         [exit_flag, output] = system_cache_first(redis_cmd);
     else
         [exit_flag, output] = system_then_cache(redis_cmd);
-    end    
+    end
     if exit_flag == 1
         disp(output)
     end
@@ -64,7 +70,7 @@ else
     if strncmp(output, 'ERR', 3)
         error(output);
     end
-
+    
 end
 
 output = strip(output);
