@@ -20,6 +20,11 @@ mrc.redis_cmd(['HMSET ' worker_key ' ' worker_str]);
 
 Hndl = worker_figure(worker_key);
 
+conf = mrc.read_conf_file;
+if ~isfolder(conf.log_path)
+    mkdir(conf.log_path);
+end
+
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
 
 while strcmp(get_worker_status(), 'active')
@@ -28,13 +33,15 @@ while strcmp(get_worker_status(), 'active')
     if isempty(task_key)
         pause(3)
     else
-        clear functions
-        clear global
+        clear functions;
+        clear global;
         
-        preform_task(worker_key, task_key)
+        diary(fullfile(conf.log_path, strrep([task_key '_' worker_key '_' datestr(now, 30) '.txt'], ':', '-')));        
+        preform_task(worker_key, task_key);
+        diary off
         
         fclose all;
-        close all
+        close all;
         
         Hndl = worker_figure(worker_key);
        

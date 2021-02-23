@@ -9,8 +9,7 @@ if any(strcmpi('cmd_prefix', varargin))
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
-    conf_path = fullfile(mrc_path,'mrc_client.conf');
-    conf = read_conf_file(conf_path);
+    conf = mrc.read_conf_file;
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
         redis_cli_path = dir(fullfile(mrc_path, conf.redis_cli_path));
@@ -122,15 +121,3 @@ output = strip(output);
 end
 
 
-function conf_data = read_conf_file(file_path)
-f = fopen(file_path);
-if f == -1
-    error(['Unable to open ' file_path])
-end
-
-conf_arrs = textscan(f, '%[^=]=%[^\n]');
-conf_arrs{2} = cellfun(@strip, conf_arrs{2}, 'UniformOutput', false);
-fclose(f);
-
-conf_data = cell2struct(conf_arrs{2}, conf_arrs{1});
-end
