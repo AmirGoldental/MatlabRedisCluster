@@ -154,11 +154,17 @@ refresh()
         end
         for entry = entries(:)'
             strcells = strcat(fieldnames(table2struct(data(entry,:))), ' : "', cellstr(table2cell(data(entry,:))'), '"');
+            for cell_idx = 1:numel(strcells)
+                cell_content = strcells{cell_idx};
+                cell_content = join(split(cell_content, ',\n'), [', ' newline '  ']);
+                strcells{cell_idx} = cell_content{1};
+            end
             Hndl = figure('MenuBar', 'none', 'Name', 'details',...
                 'NumberTitle' ,'off', 'Units', 'normalized');
-            uicontrol(Hndl, 'Style', 'text', 'Units', 'normalized', ...
-                'Position', [0.01 0.01 0.98 0.9], 'String', strcells,...
-                'Callback', @(~,~) close(Hndl), 'FontSize', 16, 'FontName', 'Consolas')
+            uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
+                'Position', [0.01 0.01 0.98 0.98], 'String', strcells,...
+                'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
+                'FontName', 'Consolas', 'HorizontalAlignment', 'left');
             drawnow
         end
     end
