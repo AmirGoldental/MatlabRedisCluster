@@ -15,7 +15,7 @@ set matlab_pid=%3
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
 call :logger INFO load parameters from %params_path%
-for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
+for /f "tokens=1,* delims==" %%x in ('type "%params_path%"') do call :run_and_set %%x %%y
 
 call :logger INFO check that redis exists 
 if not exist %redis_cli_path% (echo !redis_cli_path! does not exists & exit /b) 

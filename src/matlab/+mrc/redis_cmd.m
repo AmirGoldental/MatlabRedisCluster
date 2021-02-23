@@ -17,7 +17,7 @@ else
     end
     assert(length(redis_cli_path) == 1, 'Could not find redis-cli.exe');
     redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
-    redis_cmd_prefix = [redis_cli_path ' -h ' conf.redis_hostname ' -p '...
+    redis_cmd_prefix = ['"' redis_cli_path '" -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
 end
 

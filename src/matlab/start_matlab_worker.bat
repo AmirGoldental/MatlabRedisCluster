@@ -8,7 +8,7 @@ set params_path=%1
 
 
 call :logger INFO load parameters from %params_path%
-for /f "tokens=1,* delims==" %%x in (%params_path%) do call :run_and_set %%x %%y
+for /f "tokens=1,* delims==" %%x in ('type "%params_path%"') do call :run_and_set %%x %%y
 
 set cur_dir=%~dp0
 set cur_dir=!cur_dir:~0,-1!
@@ -20,7 +20,6 @@ set cur_dir=!cur_dir:~0,-1!
 :: pause
 :: exit /s
 :: :matlab_ok
-
 start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrc.join_as_worker"
 timeout /t 30
 exit /s
