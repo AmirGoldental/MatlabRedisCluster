@@ -6,6 +6,8 @@ cluster_status.num_pending = strip(numeric_stats{1});
 cluster_status.num_ongoing = strip(numeric_stats{2});
 cluster_status.num_finished = strip(numeric_stats{3});
 cluster_status.num_failed = strip(numeric_stats{4});
+workers_keys = mrc.redis_cmd('keys worker:*');  % Note => this line may be slow for many keys
+cluster_status.num_workers = num2str((numel(find(workers_keys == newline)) + 1)*(~isempty(workers_keys)));
 redis_uptime = strip(numeric_stats{5});
 redis_uptime(1: (strfind(redis_uptime, 'uptime_in_seconds') + length('uptime_in_seconds'))) = [];
 redis_uptime((find(redis_uptime == newline, 1)-1):end) = [];
@@ -21,7 +23,7 @@ cluster_status.uptime = redis_uptime;
 
 switch list_name
     case 'workers'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('keys worker:*'); 
+        keys = workers_keys;
     case 'pending'
         [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange pending_tasks 0 ' pending_elements2fetch]);
     case 'ongoing'

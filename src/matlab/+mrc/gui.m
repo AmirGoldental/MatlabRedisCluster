@@ -6,70 +6,72 @@ colors.red = '#cf4229';
 colors.strong = '#1C4E80';
 colors.weak = '#A5D8DD';
 
-fig = figure('Name', 'Matlab Redis Runner', 'MenuBar', 'none', 'Color', colors.background);
-fig.NumberTitle = 'off';
-fig.Units = 'normalized';
+fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
+    'NumberTitle', 'off', 'Units', 'normalized', ...
+    'Color', colors.background, 'KeyPressFcn', @fig_key_press);
 fig.Position = [0.02 0.04 0.95 0.85];
 data = [];
+
+actions_menu= uimenu(fig, 'Text', 'Actions');
+uimenu(actions_menu, 'Text', 'Refresh (F5)', 'MenuSelectedFcn', @(~,~) refresh());
+uimenu(actions_menu, 'Text', 'Clear finished', ...
+    'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL finished_tasks']));
+uimenu(actions_menu, 'Text', 'Clear failed', ...
+    'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL failed_tasks']));
+
 gui_status.active_filter_button = 'pending';
+button_length = 0.13;
+button_height = 0.04;
+button_y_ofset = 0.95;
 
 filter_buttons.pending = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Pending Tasks', 'Units', 'normalized', 'Position', [0.01 0.92 0.1 0.0499],...
+    'String', 'Pending Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+    'Position', [0.01, button_y_ofset, button_length, button_height], ...
     'callback', @(~,~) filter_button_callback('pending'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.ongoing = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Ongoing Tasks', 'Units', 'normalized', 'Position', [0.01 0.87 0.1 0.0499],...
+    'String', 'Ongoing Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
+    'Position', [0.01 + button_length, button_y_ofset, button_length, button_height], ...
     'callback', @(~,~) filter_button_callback('ongoing'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.finished = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Finished Tasks', 'Units', 'normalized', 'Position', [0.01 0.82 0.1 0.0499],...
+    'String', 'Finished Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
+    'Position', [0.01 + 2*button_length, button_y_ofset, button_length, button_height], ...
     'callback', @(~,~) filter_button_callback('finished'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.failed = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Failed Tasks', 'Units', 'normalized', 'Position', [0.01 0.77 0.1 0.0499],...
+    'String', 'Failed Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
+    'Position', [0.01 + 3*button_length, button_y_ofset, button_length, button_height], ...
     'callback', @(~,~) filter_button_callback('failed'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
 filter_buttons.workers = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Workers', 'Units', 'normalized', 'Position', [0.01 0.72 0.1 0.0499],...
+    'String', 'Workers', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
+    'Position', [0.01 + 4*button_length, button_y_ofset, button_length, button_height], ...
     'callback', @(~,~) filter_button_callback('workers'), 'ForegroundColor', 'w', 'FontName', 'Consolas', 'FontSize', 12);
-
-
-details_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.weak,...
-    'String', 'View details', 'Units', 'normalized', 'Position', [0.01 0.17 0.1 0.0499],...
-    'callback', @(~,~) details, 'ForegroundColor', 'k', 'FontName', 'Consolas', 'FontSize', 12);
-
-refresh_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.weak,...
-    'String', 'Refresh', 'Units', 'normalized', 'Position', [0.01 0.12 0.1 0.0499],...
-    'callback', @(~,~) refresh(), 'ForegroundColor', 'k', 'FontName', 'Consolas', 'FontSize', 12);
-
-
-other_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.red,...
-    'String', 'Delete task(s)', 'Units', 'normalized', 'Position', [0.01 0.07 0.1 0.0499],...
-    'callback', @(~,~) other_callback(), 'ForegroundColor', 'w', ...
-    'FontName', 'Consolas', 'FontSize', 12, 'FontWeight', 'bold');
-
 restart_button = uicontrol(fig, 'Style', 'pushbutton', 'BackgroundColor', colors.red,...
-    'String', 'Restart Cluster', 'Units', 'normalized', 'Position', [0.01 0.02 0.1 0.0499],...
+    'String', 'Restart Cluster', 'Units', 'normalized', 'Position', [0.89 button_y_ofset 0.1 button_height],...
     'callback', @(~,~) restart_cluster, 'ForegroundColor', 'w', ...
     'FontName', 'Consolas', 'FontSize', 12, 'FontWeight', 'bold');
 
 command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'FontName', 'Consolas', 'FontSize', 16, 'Max', 2,...
-    'Units', 'normalized', 'Position', [0.12 0.02 0.87 0.95], ...
-    'Callback', @(~,~) listbox_callback, 'BackgroundColor', colors.list_background, 'Value', 1);
-
-numeric_stats_box = uicontrol(fig, 'Style', 'text','BackgroundColor', colors.list_background, ...
-    'String', 'numeric', 'Units', 'normalized', 'Position', [0.01 0.24 0.1 0.1299], ...
-    'FontName', 'Consolas', 'FontSize', 12, 'HorizontalAlignment', 'left');
+    'Units', 'normalized', 'Position', [0.01, 0.02, 0.98, button_y_ofset-0.02], ...
+    'Callback', @(~,~) listbox_callback, 'KeyPressFcn', @fig_key_press, ...
+    'BackgroundColor', colors.list_background, 'Value', 1);
 
 refresh()
 
     function filter_button_callback(category)
-        [data, numeric_data] = mrc.get_cluster_status(category);
-        numeric_stats_box.String = [...
-            'Pending: ' numeric_data.num_pending char(10) ...
-            'Ongoing: ' numeric_data.num_ongoing char(10) ...
-            'Finished: ' numeric_data.num_finished char(10) ...
-            'Failed: ' numeric_data.num_failed char(10) ...
-            'Uptime: ' numeric_data.uptime];
-            
         gui_status.active_filter_button = category;
+        refresh();        
+    end
+
+
+    function refresh()
+        category = gui_status.active_filter_button;
+        [data, numeric_data] = mrc.get_cluster_status(category);
+        filter_buttons.pending.String = [numeric_data.num_pending ' Pending Tasks'];
+        filter_buttons.ongoing.String = [numeric_data.num_ongoing ' Ongoing Tasks'];
+        filter_buttons.finished.String = [numeric_data.num_finished ' Finished Tasks'];
+        filter_buttons.failed.String = [numeric_data.num_failed ' Failed Tasks'];
+        filter_buttons.workers.String = [numeric_data.num_workers ' Workers'];
+        
         structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
         structfun(@(button) set(button, 'ForegroundColor', 'k'), filter_buttons)
         filter_buttons.(category).BackgroundColor = colors.strong;
@@ -108,44 +110,8 @@ refresh()
                         data.computer, "): ",data.status);
                 end
         end
-        
-    end
-
-
-    function refresh()
-        filter_button_callback(gui_status.active_filter_button)
         fig.Name = ['Matlab Redis Runner, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
     end
-
-    function other_callback()
-        switch gui_status.active_filter_button
-            case 'pending'
-                tasks_to_stop = command_list.Value;
-                for task_key = data.key(tasks_to_stop)'
-                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
-                end
-            case 'ongoing'
-                tasks_to_stop = command_list.Value;
-                for task_key = data.key(tasks_to_stop)'
-                    worker_key = mrc.redis_cmd(['HGET ' char(task_key) ' worker']);
-                    mrc.redis_cmd(['HSET ' char(worker_key) ' status restart'])
-                end
-            case 'finished'
-                mrc.redis_cmd(['DEL finished_tasks'])
-            case 'failed'
-                mrc.redis_cmd(['DEL failed_tasks'])
-            case 'workers'
-                workers_to_kill = command_list.Value;
-                for worker_key = data.key(workers_to_kill)'
-                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
-                        mrc.redis_cmd(['HSET ' char(worker_key) ' status kill'])
-                    end
-                end
-        end
-        refresh()
-    end
-
-
 
     function details()
         entries = command_list.Value;
@@ -178,5 +144,44 @@ refresh()
     function restart_cluster()
         mrc.flush_db;
         refresh;
+    end
+    
+    function list_entries_delete()
+        switch gui_status.active_filter_button
+            case 'pending'
+                tasks_to_stop = command_list.Value;
+                for task_key = data.key(tasks_to_stop)'
+                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
+                end
+            case 'ongoing'
+                tasks_to_stop = command_list.Value;
+                for task_key = data.key(tasks_to_stop)'
+                    worker_key = mrc.redis_cmd(['HGET ' char(task_key) ' worker']);
+                    mrc.redis_cmd(['HSET ' char(worker_key) ' status restart'])
+                end
+            case 'finished'
+                tasks_to_clear = command_list.Value;
+                mrc.redis_cmd(['SREM finished_tasks ' char(join(data.key(tasks_to_clear), ' '))]);
+            case 'failed'
+                tasks_to_clear = command_list.Value;
+                mrc.redis_cmd(['SREM failed_tasks ' char(join(data.key(tasks_to_clear), ' '))]);
+            case 'workers'
+                workers_to_kill = command_list.Value;
+                for worker_key = data.key(workers_to_kill)'
+                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
+                        mrc.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+                    end
+                end
+        end
+        refresh()
+    end
+
+    function fig_key_press(~, key_data)
+        switch key_data.Key
+            case 'f5'
+                refresh()
+            case 'delete'
+                list_entries_delete()
+        end
     end
 end
