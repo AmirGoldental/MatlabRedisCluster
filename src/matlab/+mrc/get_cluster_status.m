@@ -1,12 +1,23 @@
 function [status, cluster_status] = get_cluster_status(list_name)
-pending_elements2fetch = num2str(70);
+pending_elements2fetch = num2str(30);
 [numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
-    'LLEN ongoing_tasks', 'SCARD finished_tasks', 'SCARD failed_tasks'});
-cluster_status.num_pending = numeric_stats(1);
-cluster_status.num_ongoing = numeric_stats(2);
-cluster_status.num_finished = numeric_stats(3);
-cluster_status.num_failed = numeric_stats(4);
-
+    'LLEN ongoing_tasks', 'SCARD finished_tasks', 'SCARD failed_tasks', 'info'});
+cluster_status.num_pending = strip(numeric_stats{1});
+cluster_status.num_ongoing = strip(numeric_stats{2});
+cluster_status.num_finished = strip(numeric_stats{3});
+cluster_status.num_failed = strip(numeric_stats{4});
+redis_uptime = strip(numeric_stats{5});
+redis_uptime(1: (strfind(redis_uptime, 'uptime_in_seconds') + length('uptime_in_seconds'))) = [];
+redis_uptime((find(redis_uptime == newline, 1)-1):end) = [];
+redis_uptime = str2double(redis_uptime);
+if redis_uptime > 3600*24
+    redis_uptime = [num2str(redis_uptime/(3600*24), 3) 'd'];
+elseif redis_uptime > 3600
+    redis_uptime = [num2str(redis_uptime/3600, 3) 'h'];
+else
+    redis_uptime = [num2str(redis_uptime/60, 3) 'm'];
+end    
+cluster_status.uptime = redis_uptime;
 
 switch list_name
     case 'workers'
