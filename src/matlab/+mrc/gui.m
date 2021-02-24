@@ -76,6 +76,7 @@ refresh()
         %structfun(@(button) set(button, 'ForegroundColor', 'k'), filter_buttons)
         filter_buttons.(category).BackgroundColor = colors.strong;
         %filter_buttons.(category).ForegroundColor = 'w';
+        filter_buttons.(category).FontWeight = 'Bold';
         command_list.Value = 1;
         command_list.String = {};
         switch category
