@@ -167,10 +167,14 @@ refresh()
                 end
             case 'finished'
                 tasks_to_clear = command_list.Value;
-                mrc.redis_cmd(['SREM finished_tasks ' char(join(data.key(tasks_to_clear), ' '))]);
+                for task_key = data.key(tasks_to_clear)'
+                    mrc.redis_cmd(['LREM finished_tasks 0 "' char(task_key) '"'])
+                end
             case 'failed'
                 tasks_to_clear = command_list.Value;
-                mrc.redis_cmd(['SREM failed_tasks ' char(join(data.key(tasks_to_clear), ' '))]);
+                for task_key = data.key(tasks_to_clear)'
+                    mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key) '"'])
+                end
             case 'workers'
                 workers_to_kill = command_list.Value;
                 for worker_key = data.key(workers_to_kill)'
