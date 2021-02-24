@@ -14,6 +14,8 @@ data = [];
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
 uimenu(actions_menu, 'Text', 'Refresh (F5)', 'MenuSelectedFcn', @(~,~) refresh());
+retry_button_hndl = uimenu(actions_menu, 'Text', 'Retry selceted tasks', ...
+    'MenuSelectedFcn', @(~,~) retry_selceted_tasks, 'Visible', 'off');
 uimenu(actions_menu, 'Text', 'Clear finished', ...
     'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL finished_tasks']));
 uimenu(actions_menu, 'Text', 'Clear failed', ...
@@ -78,33 +80,31 @@ refresh()
         filter_buttons.(category).FontWeight = 'Bold';
         command_list.Value = 1;
         command_list.String = {};
+            
         switch category
             case 'pending'
-                other_button.String = 'Delete Task(s)';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.created_on, "] (",...
                         data.created_by, "): ", data.command);
                 end
             case 'ongoing'
-                other_button.String = 'Stop Task(s)';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.started_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'finished'
-                other_button.String = 'Clear';
+                retry_button_hndl.Visible = 'on';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.finished_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'failed'
-                other_button.String = 'Clear';
+                retry_button_hndl.Visible = 'on';
                 if ~isempty(data)
                     command_list.String = strcat("[",data.failed_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'workers'
-                other_button.String = 'Kill Worker(s)';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.key, "] (", ...
                         data.computer, "): ",data.status);
@@ -127,11 +127,20 @@ refresh()
             end
             Hndl = figure('MenuBar', 'none', 'Name', 'details',...
                 'NumberTitle' ,'off', 'Units', 'normalized');
+            Hndl.Position = [0.05 0.05 0.9 0.9];
             uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
-                'Position', [0.01 0.01 0.98 0.98], 'String', strcells,...
+                'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
                 'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
                 'FontName', 'Consolas', 'HorizontalAlignment', 'left');
             drawnow
+            if any(strcmpi(gui_status.active_filter_button, {'failed', 'finished'}))
+                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                    'Position', [0.01 0.01 0.1 0.05], 'FontSize', 13, ...
+                    'String', 'Retry', 'Callback', @(~,~) retry_task(table2struct(data(entry,:)), 'refresh'))
+                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                    'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
+                    'String', 'Retry on this machine', 'Callback', @(~,~) evalin('base', data.command(entry)))
+            end
         end
     end
 
@@ -190,4 +199,22 @@ refresh()
                 list_entries_delete()
         end
     end
+    
+    function retry_selceted_tasks()        
+        tasks_idx_to_retry = command_list.Value;
+        for task_idx = tasks_idx_to_retry(:)'
+            task = table2struct(data(tasks_idx_to_retry,:));
+            retry_task(task)
+        end
+        refresh()
+    end
+
+    function retry_task(task, varargin)
+         mrc.new_task(task.command);
+         if any(strcmpi('refresh', varargin))
+             refresh();
+         end
+    end
+
+
 end
