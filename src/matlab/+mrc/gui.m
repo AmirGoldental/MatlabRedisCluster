@@ -139,7 +139,7 @@ refresh()
                     'String', 'Retry', 'Callback', @(~,~) retry_task(table2struct(data(entry,:)), 'refresh'))
                 uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
                     'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
-                    'String', 'Retry on this machine', 'Callback', @(~,~) evalin('base', data.command(entry)))
+                    'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(table2struct(data(entry,:))))
             end
         end
     end
@@ -214,10 +214,18 @@ refresh()
     end
 
     function retry_task(task, varargin)
-         mrc.new_task(task.command);
+         mrc.new_task(task.command, 'path', task.path);
          if any(strcmpi('refresh', varargin))
              refresh();
          end
+    end
+    
+    function retry_task_on_this_machine(task)
+        path2add = task.path2add;
+        if ~strcmpi(path2add, 'None')
+            evalin('base', ['addpath(' path2add ')'])
+        end
+        evalin('base', task.command)
     end
 
 

@@ -27,19 +27,22 @@ end
 
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
 
+clear functions;
+clear global;
+restoredefaultpath
 while strcmp(get_worker_status(), 'active')
     task_key = mrc.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
     
     if isempty(task_key)
         pause(3)
-    else
-        clear functions;
-        clear global;
-        
+    else        
         diary(fullfile(conf.log_path, strrep([task_key '_' worker_key '_' datestr(now, 30) '.txt'], ':', '-')));        
         preform_task(worker_key, task_key);
         diary off
         
+        clear functions;
+        clear global;
+        restoredefaultpath
         fclose all;
         close all;
         
@@ -68,6 +71,7 @@ task = struct();
 task.command = mrc.redis_cmd(['HGET ' task_key ' command']);
 task.created_by = mrc.redis_cmd(['HGET ' task_key ' created_by']);
 task.created_on = mrc.redis_cmd(['HGET ' task_key ' created_on']);
+task.path2add = mrc.redis_cmd(['HGET ' task_key ' path2add']);
 disp(task)
 
 % Update task
@@ -78,6 +82,9 @@ mrc.redis_cmd(['HMSET ' task_key ' started_on ' str_to_redis_str(datetime) ...
 mrc.redis_cmd(['HMSET ' worker_key ' current_task ' task_key ' last_command ' str_to_redis_str(task.command)]);
 
 try
+    if ~strcmpi(task.path2add, 'None')
+        addpath(task.path2add)
+    end
     eval(task.command)
     mrc.redis_cmd({'MULTI', ...
         ['LREM ongoing_tasks 0 ' task_key], ...

@@ -14,19 +14,18 @@
             ]
          },
          {
+            "name": "path",
+            "kind": "namevalue",
+            "type": [
+               "char"
+            ]
+         },
+         {
             "name": "wait",
             "kind": "flag",
             "type": [
                "char",
                "choices={'wait'}"
-            ]
-         },
-         {
-            "name": "task_type",
-            "kind": "flag",
-            "type": [
-               "char",
-               "choices={'matlab, batch'}"
             ]
          }
       ]
