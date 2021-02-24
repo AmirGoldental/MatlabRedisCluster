@@ -1,7 +1,7 @@
 function [status, cluster_status] = get_cluster_status(list_name)
 pending_elements2fetch = num2str(30);
 [numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
-    'LLEN ongoing_tasks', 'SCARD finished_tasks', 'SCARD failed_tasks', 'info'});
+    'LLEN ongoing_tasks', 'LLEN finished_tasks', 'LLEN failed_tasks', 'info'});
 cluster_status.num_pending = strip(numeric_stats{1});
 cluster_status.num_ongoing = strip(numeric_stats{2});
 cluster_status.num_finished = strip(numeric_stats{3});
@@ -29,9 +29,9 @@ switch list_name
     case 'ongoing'
         [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange ongoing_tasks 0 -1');   
     case 'finished'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('SMEMBERS finished_tasks');   
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange finished_tasks 0 -1');   
     case 'failed'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('SMEMBERS failed_tasks'); 
+        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange failed_tasks 0 -1'); 
     otherwise
         error('Unknown list_name')
 end
