@@ -18,7 +18,13 @@ for field = fieldnames(worker)'
 end
 mrc.redis_cmd(['HMSET ' worker_key ' ' worker_str]);
 
-Hndl = worker_figure(worker_key);
+clear functions;
+clear global;
+restoredefaultpath
+fclose all;
+close all;
+
+worker_fig = worker_figure(worker_key, -1);
 
 conf = mrc.read_conf_file;
 if ~isfolder(conf.log_path)
@@ -27,61 +33,56 @@ end
 
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
 
-clear functions;
-clear global;
-restoredefaultpath
 while strcmp(get_worker_status(), 'active')
-    task_key = mrc.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
-    
-    if isempty(task_key)
-        pause(3)
-    else        
-        diary(fullfile(conf.log_path, strrep([task_key '_' worker_key '_' datestr(now, 30) '.txt'], ':', '-')));        
-        preform_task(worker_key, task_key);
-        diary off
-        
-        clear functions;
-        clear global;
-        restoredefaultpath
-        fclose all;
-        close all;
-        
-        Hndl = worker_figure(worker_key);
-       
-    end
+    perform_task(worker_key, conf.log_path)
+    worker_fig = worker_figure(worker_key, worker_fig);
 end
-if ishandle(Hndl)
-    close(Hndl)
-end
+if ishandle(worker_fig)
+    close(worker_fig)
 end
 
-function Hndl = worker_figure(worker_key)
-Hndl = figure('MenuBar', 'none', 'Name', worker_key,...
+end
+function worker_fig = worker_figure(worker_key, worker_fig)
+if ishandle(worker_fig)
+    return
+end
+
+worker_fig = figure('MenuBar', 'none', 'Name', worker_key,...
     'NumberTitle' ,'off', 'Units', 'normalized');
-uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized',...
+uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
     'Position', [0.01 0.01 0.98 0.98], 'String', ['Kill ' worker_key],...
     'Callback', @(~,~) mrc.redis_cmd(['HSET ' worker_key ' status kill']),...
     'FontSize', 16, 'FontName', 'Consolas', 'ForegroundColor' ,'r')
 drawnow
 end
 
-function preform_task(worker_key, task_key)
+function perform_task(worker_key, log_file)
 
-task = struct();
-task.command = mrc.redis_cmd(['HGET ' task_key ' command']);
-task.created_by = mrc.redis_cmd(['HGET ' task_key ' created_by']);
-task.created_on = mrc.redis_cmd(['HGET ' task_key ' created_on']);
-task.path2add = mrc.redis_cmd(['HGET ' task_key ' path2add']);
+task_key = mrc.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
+
+if isempty(task_key)
+    pause(3)
+    return
+end
+
+task = get_redis_hash(task_key);
+
+% Update task and worker
+mrc.redis_cmd({['HMSET ' task_key ...
+    ' started_on ' str_to_redis_str(datetime) ...
+    ' worker ' worker_key ' status ongoing'], ...
+    ['HMSET ' worker_key  ...
+    ' current_task ' task_key ...
+    ' last_command ' str_to_redis_str(task.command)]});
+
+
+% Start logging:
+diary(fullfile(log_file, strrep([task_key '_' worker_key '_' datestr(now, 30) '.txt'], ':', '-')));
+
 disp(task)
 
-% Update task
-mrc.redis_cmd(['HMSET ' task_key ' started_on ' str_to_redis_str(datetime) ...
-    ' worker ' worker_key ' status ongoing']);
-
-% Update worker
-mrc.redis_cmd(['HMSET ' worker_key ' current_task ' task_key ' last_command ' str_to_redis_str(task.command)]);
-
 try
+    % Perform the task
     if ~strcmpi(task.path2add, 'None')
         addpath(task.path2add)
     end
@@ -99,8 +100,8 @@ catch err
     
     mrc.redis_cmd({'MULTI', ...
         ['LREM ongoing_tasks 0 ' task_key], ...
-    	['LPUSH failed_tasks ' task_key ], ...
-    	['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
+        ['LPUSH failed_tasks ' task_key ], ...
+        ['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
         ' err_msg ' str_to_redis_str(json_err) ' status failed'], ...
         'EXEC'});
     disp(['    failed_on ' str_to_redis_str(datetime) ])
@@ -110,4 +111,13 @@ end
 
 mrc.redis_cmd(['HSET ' worker_key ' current_task None']);
 
+diary off
+
+clear functions;
+clear global;
+restoredefaultpath
+fclose all;
+close all;
 end
+
+
