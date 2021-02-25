@@ -12,11 +12,7 @@ worker.status = 'active';
 worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
 worker.current_task = 'None';
 worker.last_command = 'None';
-worker_str = [];
-for field = fieldnames(worker)'
-    worker_str = [worker_str ' ' field{1} ' ' str_to_redis_str(worker.(field{1}))];
-end
-mrc.redis_cmd(['HMSET ' worker_key ' ' worker_str]);
+set_redis_hash(worker_key, worker)
 
 clear functions;
 clear global;
