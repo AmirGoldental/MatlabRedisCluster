@@ -54,7 +54,7 @@ end
 
 function perform_task(worker_key, log_file)
 
-task_key = mrc.redis_cmd('LPOPRPUSH pending_tasks ongoing_tasks');
+task_key = mrc.redis_cmd('RPOPLPUSH pending_tasks ongoing_tasks');
 
 if isempty(task_key)
     pause(3)
