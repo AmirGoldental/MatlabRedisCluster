@@ -1,9 +1,6 @@
-function [status, cluster_status] = get_cluster_status(list_name, page_num, items_in_page)
-if ~exist('page_num', 'var')
-    page_num = 1;
-end
-if ~exist('items_in_page', 'var')
-    items_in_page = 30;
+function [status, cluster_status] = get_cluster_status(list_name, idxs_to_load)
+if ~exist('idxs_to_load', 'var')
+    idxs_to_load = [0 -1];
 end
 
 [numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
@@ -33,9 +30,7 @@ if strcmpi(list_name, 'workers')
     keys = workers_keys;
 else
     redis_list_name = [list_name '_tasks'];
-    from_ind = num2str((page_num-1)*items_in_page);
-    to_ind = num2str(page_num*items_in_page);
-    [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange ' redis_list_name ' ' from_ind ' ' to_ind]);
+    [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange ' redis_list_name ' ' num2str(idxs_to_load)]);
 end
 
 keys = split(keys, newline);
