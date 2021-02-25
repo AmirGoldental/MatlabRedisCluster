@@ -56,17 +56,53 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'Callback', @(~,~) listbox_callback, 'KeyPressFcn', @fig_key_press, ...
     'BackgroundColor', colors.list_background, 'Value', 1);
 
+items_per_page = 30;
+cur_page = 1;
+
+pagnation_x_offset = 0.73;
+uicontrol(fig, 'Style', 'pushbutton', ...
+    'String', '<', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+    'Position', [pagnation_x_offset, button_y_ofset, button_length./2, button_height], ...
+    'callback', @(~,~) prev_page, 'FontName', 'Consolas', 'FontSize', 12);
+page_info = uicontrol(fig, 'Style', 'pushbutton', ...
+    'String', '0 - 0', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+    'Position', [pagnation_x_offset+button_length.*0.5, button_y_ofset, button_length, button_height], ...
+    'FontName', 'Consolas', 'FontSize', 12, 'enable', 'off');
+uicontrol(fig, 'Style', 'pushbutton', ...
+    'String', '>', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+    'Position', [pagnation_x_offset+button_length.*1.5, button_y_ofset, button_length./2, button_height], ...
+    'callback', @(~,~) next_page, 'FontName', 'Consolas', 'FontSize', 12);
+
 refresh()
+
+    function next_page()
+        cur_page = cur_page + 1;
+        refresh(); 
+    end
+
+    function prev_page()
+        cur_page = max(1, cur_page - 1);
+        refresh(); 
+    end
 
     function filter_button_callback(category)
         gui_status.active_filter_button = category;
+        cur_page = 1;
         refresh();        
     end
 
 
     function refresh()
         category = gui_status.active_filter_button;
-        [data, numeric_data] = mrc.get_cluster_status(category);
+        [data, numeric_data] = mrc.get_cluster_status(category, cur_page, items_per_page);
+        max_category_items = str2double(numeric_data.(['num_' category]));
+        max_pages = max(1, ceil(max_category_items / items_per_page));
+        if cur_page > max_pages
+            return
+        end
+        items_first_ind = min(max_category_items, 1 + items_per_page * (cur_page - 1));
+        items_last_ind = min(max_category_items, items_per_page * cur_page);
+        page_info.String = [num2str(items_first_ind) ' - ' num2str(items_last_ind)];
         filter_buttons.pending.String = [numeric_data.num_pending ' Pending Tasks'];
         filter_buttons.ongoing.String = [numeric_data.num_ongoing ' Ongoing Tasks'];
         filter_buttons.finished.String = [numeric_data.num_finished ' Finished Tasks'];

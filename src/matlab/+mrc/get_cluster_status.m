@@ -1,13 +1,21 @@
-function [status, cluster_status] = get_cluster_status(list_name)
-pending_elements2fetch = num2str(30);
+function [status, cluster_status] = get_cluster_status(list_name, page_num, items_in_page)
+if ~exist('page_num', 'var')
+    page_num = 1;
+end
+if ~exist('items_in_page', 'var')
+    items_in_page = 30;
+end
+
 [numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
     'LLEN ongoing_tasks', 'LLEN finished_tasks', 'LLEN failed_tasks', 'info'});
+
 cluster_status.num_pending = strip(numeric_stats{1});
 cluster_status.num_ongoing = strip(numeric_stats{2});
 cluster_status.num_finished = strip(numeric_stats{3});
 cluster_status.num_failed = strip(numeric_stats{4});
 workers_keys = mrc.redis_cmd('keys worker:*');  % Note => this line may be slow for many keys
 cluster_status.num_workers = num2str((numel(find(workers_keys == newline)) + 1)*(~isempty(workers_keys)));
+
 redis_uptime = strip(numeric_stats{5});
 redis_uptime(1: (strfind(redis_uptime, 'uptime_in_seconds') + length('uptime_in_seconds'))) = [];
 redis_uptime((find(redis_uptime == newline, 1)-1):end) = [];
@@ -21,20 +29,15 @@ else
 end    
 cluster_status.uptime = redis_uptime;
 
-switch list_name
-    case 'workers'
-        keys = workers_keys;
-    case 'pending'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange pending_tasks 0 ' pending_elements2fetch]);
-    case 'ongoing'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange ongoing_tasks 0 -1');   
-    case 'finished'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange finished_tasks 0 -1');   
-    case 'failed'
-        [keys, redis_cmd_prefix] = mrc.redis_cmd('lrange failed_tasks 0 -1'); 
-    otherwise
-        error('Unknown list_name')
+if strcmpi(list_name, 'workers')
+    keys = workers_keys;
+else
+    redis_list_name = [list_name '_tasks'];
+    from_ind = num2str((page_num-1)*items_in_page);
+    to_ind = num2str(page_num*items_in_page);
+    [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange ' redis_list_name ' ' from_ind ' ' to_ind]);
 end
+
 keys = split(keys, newline);
 output = struct();
 itter = 0;
