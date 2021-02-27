@@ -1,4 +1,5 @@
 function join_as_worker()
+db_id = get_db_id();
 worker = struct();
 worker_key = ['worker:' mrc.redis_cmd('incr matlab_workers_count')];
 worker.started_on = datetime();
@@ -30,7 +31,7 @@ end
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
 
 while strcmp(get_worker_status(), 'active')
-    perform_task(worker_key, conf.log_path)
+    perform_task(worker_key, db_id, conf.log_path)
     worker_fig = worker_figure(worker_key, worker_fig);
 end
 if ishandle(worker_fig)
@@ -52,7 +53,10 @@ uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
 drawnow
 end
 
-function perform_task(worker_key, log_file)
+function perform_task(worker_key, db_id, log_file)
+if ~strcmp(db_id, get_db_id())
+    return
+end
 lua_script = ['"' ...
     'if redis.call(''LLEN'', ''pending_tasks'') == 0 then return '''' end;' ...
     'local worker_key = KEYS[1];' ...
@@ -87,29 +91,36 @@ try
         addpath(task.path2add)
     end
     eval(task.command)
-    mrc.redis_cmd({'MULTI', ...
-        ['LREM ongoing_tasks 0 ' task_key], ...
-        ['LPUSH finished_tasks ' task_key ], ...
-        ['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ' status finished'], ...
-        'EXEC'});
+    if strcmp(db_id, get_db_id())
+        mrc.redis_cmd({'MULTI', ...
+            ['LREM ongoing_tasks 0 ' task_key], ...
+            ['LPUSH finished_tasks ' task_key ], ...
+            ['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ' status finished'], ...
+            'EXEC'});
+    end
     disp(['    finished_on ' str_to_redis_str(datetime) ])
     disp('')
 catch err
     json_err = jsonencode(err);
     json_err = join(split(json_err, ','), ',\n');
     
-    mrc.redis_cmd({'MULTI', ...
-        ['LREM ongoing_tasks 0 ' task_key], ...
-        ['LPUSH failed_tasks ' task_key ], ...
-        ['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
-        ' err_msg ' str_to_redis_str(json_err) ' status failed'], ...
-        'EXEC'});
+    if strcmp(db_id, get_db_id())
+        mrc.redis_cmd({'MULTI', ...
+            ['LREM ongoing_tasks 0 ' task_key], ...
+            ['LPUSH failed_tasks ' task_key ], ...
+            ['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
+            ' err_msg ' str_to_redis_str(json_err) ' status failed'], ...
+            'EXEC'});
+    end
     disp(['    failed_on ' str_to_redis_str(datetime) ])
     disp('')
     disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
 end
 
-mrc.redis_cmd(['HSET ' worker_key ' current_task None']);
+
+if strcmp(db_id, get_db_id())
+    mrc.redis_cmd(['HSET ' worker_key ' current_task None']);
+end
 
 diary off
 

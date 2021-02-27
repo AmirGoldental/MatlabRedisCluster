@@ -1,4 +1,5 @@
 function gui()
+db_id = get_db_id();
 items_per_load = 30;
 colors = struct();
 colors.background = '#eeeeee';
@@ -84,6 +85,9 @@ refresh()
         if any(strcmpi(category, {'workers', 'ongoing'})) % those recive real time data
             [data, numeric_data]  = mrc.get_cluster_status(category);            
         else
+            if ~strcmp(db_id, get_db_id())
+                data = table();
+            end
             [new_data, numeric_data] = mrc.get_cluster_status(category, size(data,1) + [0 items_per_load-1]);
             data = [data; new_data];
         end
@@ -134,7 +138,7 @@ refresh()
                         data.computer, "): ",data.status);
                 end
         end
-        fig.Name = ['Matlab Redis Runner, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
+        fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
     end
 
     function details()

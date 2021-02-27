@@ -76,17 +76,11 @@ output = strip(output);
 
     function [exit_flag, output] = system_cache_first(redis_cmd)
         % Check that DB was not flushed
-        dbhash = mrc.redis_cmd('get dbhash');
-        while isempty(mrc.redis_cmd('get dbhash'))
-            % DB is empty.
-            randomstr = char(randi([uint8('A') uint8('Z')], 1, 32));
-            mrc.redis_cmd(['setnx dbhash ' randomstr]);
-            dbhash = mrc.redis_cmd('get dbhash');
-        end
-        if isempty(cache) || ~cache.isKey('dbhash') || ~strcmp(dbhash, cache('dbhash'))
+        db_id = get_db_id();
+        if isempty(cache) || ~cache.isKey('db_id') || ~strcmp(db_id, cache('db_id'))
             % DB was flushed, clean cache.
             cache = containers.Map;
-            cache('dbhash') = dbhash;
+            cache('db_id') = db_id;
         end
         
         if cache.isKey(redis_cmd)
