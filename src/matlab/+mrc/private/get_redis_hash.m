@@ -1,8 +1,14 @@
 function redis_structs = get_redis_hash(redis_keys)
+if isempty(redis_keys)
+    redis_structs = struct();
+    return
+end
 if ~iscell(redis_keys)
     redis_keys = {redis_keys};
-else
-    redis_keys = redis_keys;
+end
+if numel(redis_keys) == 1 && isempty(redis_keys{1})
+    redis_structs = struct();
+    return
 end
 redis_cmds = cellfun( @(redis_key) ['HGETALL ' redis_key], redis_keys, 'UniformOutput', false);
 redis_outputs = mrc.redis_cmd(redis_cmds);

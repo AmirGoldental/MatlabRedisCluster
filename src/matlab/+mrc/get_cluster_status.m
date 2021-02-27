@@ -4,7 +4,7 @@ if ~exist('idxs_to_load', 'var')
 end
 
 [numeric_stats, redis_cmd_prefix] =  mrc.redis_cmd({'LLEN pending_tasks', ...
-    'LLEN ongoing_tasks', 'LLEN finished_tasks', 'LLEN failed_tasks', 'info'});
+    'SCARD ongoing_tasks', 'LLEN finished_tasks', 'LLEN failed_tasks', 'info'});
 
 cluster_status.num_pending = strip(numeric_stats{1});
 cluster_status.num_ongoing = strip(numeric_stats{2});
@@ -25,39 +25,19 @@ else
 end    
 cluster_status.uptime = redis_uptime;
 
-if strcmpi(list_name, 'workers')
-    keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, 1:cluster_status.num_workers);
-else
-    redis_list_name = [list_name '_tasks'];
-    [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange ' redis_list_name ' ' num2str(idxs_to_load)]);
-    keys = split(keys, newline);
+switch list_name
+    case {'pending', 'finished', 'failed'}
+        keys = mrc.redis_cmd(['lrange ' list_name '_tasks ' num2str(idxs_to_load)]);
+        keys = split(keys, newline);
+    case 'ongoing'
+        keys = mrc.redis_cmd('SMEMBERS ongoing_tasks');
+    case 'workers'
+        keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, 1:str2double(cluster_status.num_workers));
+    otherwise
+        keys = [];        
 end
-
-output = struct();
-if isempty(keys{1})
-    status = table();
-    return
+status = struct2table(get_redis_hash(keys));
+if ~isempty(status)
+    status.key = keys;
 end
-
-redis_outputs = mrc.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys), 'cmd_prefix', redis_cmd_prefix);
-
-itter = 0;
-for key = keys'
-    itter = itter + 1;
-    output.key(itter,1) = string(key{1});
-    redis_output = redis_outputs{itter};
-%     if strcmp(list_name, 'finished') || strcmp(list_name, 'failed')
-%         redis_output = mrc.redis_cmd(['HGETALL ' key{1}], 'cache_first',...
-%             'cmd_prefix', redis_cmd_prefix);
-%     else
-%         redis_output = mrc.redis_cmd(['HGETALL ' key{1}], ...
-%             'cmd_prefix', redis_cmd_prefix);
-%     end
-    
-    obj_cells = split(redis_output, newline);
-    for cell_idx = 1:2:(length(obj_cells)-1)
-        output.(obj_cells{cell_idx})(itter,1) = string(obj_cells{cell_idx+1});
-    end
-end
-status = struct2table(output);
 end

@@ -112,7 +112,7 @@ if not "!res!"=="failed" if not "!res!"=="None" (
     call :send_redis hset !current_task! failed_on "%date% %time%"
     call :send_redis hset !current_task! status failed
     call :send_redis hset !current_task! err_msg %2
-    call :send_redis lrem ongoing_tasks 0 !current_task!
+    call :send_redis srem ongoing_tasks !current_task!
     call :send_redis lpush failed_tasks !current_task!
     call :send_redis hset %1 current_task None
 )
