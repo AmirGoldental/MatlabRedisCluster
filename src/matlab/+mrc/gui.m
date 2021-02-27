@@ -15,9 +15,6 @@ fig.Position = [0.02 0.04 0.95 0.85];
 data = [];
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
-uimenu(actions_menu, 'Text', 'Refresh (F5)', 'MenuSelectedFcn', @(~,~) refresh());
-retry_button_hndl = uimenu(actions_menu, 'Text', 'Retry selceted tasks', ...
-    'MenuSelectedFcn', @(~,~) retry_selceted_tasks, 'Visible', 'off');
 uimenu(actions_menu, 'Text', 'Clear finished', ...
     'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL finished_tasks']));
 uimenu(actions_menu, 'Text', 'Clear failed', ...
@@ -58,6 +55,11 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'Callback', @(~,~) listbox_callback, 'KeyPressFcn', @fig_key_press, ...
     'BackgroundColor', colors.list_background, 'Value', 1);
 
+context_menu.hndl = uicontextmenu(fig);
+context_menu.clear = uimenu(context_menu.hndl, 'Text', 'Clear/Abort', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+context_menu.retry = uimenu(context_menu.hndl, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks, 'Visible', 'off');
+context_menu.refresh = uimenu(context_menu.hndl, 'Text', 'Refresh (F5)', 'MenuSelectedFcn', @(~,~) refresh);
+command_list.ContextMenu = context_menu.hndl;
 
 load_more_button = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Load More', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
@@ -111,28 +113,31 @@ refresh()
         
         switch category
             case 'pending'
+                context_menu.retry.Visible = 'off';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.created_on, "] (",...
                         data.created_by, "): ", data.command);
                 end
             case 'ongoing'
+                context_menu.retry.Visible = 'off';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.started_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'finished'
-                retry_button_hndl.Visible = 'on';
+                context_menu.retry.Visible = 'on';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.finished_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'failed'
-                retry_button_hndl.Visible = 'on';
+                context_menu.retry.Visible = 'on';
                 if ~isempty(data)
                     command_list.String = strcat("[",data.failed_on, "] (",...
                         data.created_by, "->", data.worker, "): ", data.command);
                 end
             case 'workers'
+                context_menu.retry.Visible = 'off';
                 if ~isempty(data)
                     command_list.String = strcat("[", data.key, "] (", ...
                         data.computer, "): ",data.status);
@@ -189,7 +194,7 @@ refresh()
         end
     end
     
-    function list_entries_delete()
+    function remove_selceted_tasks()
         switch gui_status.active_filter_button
             case 'pending'
                 tasks_to_stop = command_list.Value;
@@ -228,7 +233,7 @@ refresh()
             case 'f5'
                 refresh()
             case 'delete'
-                list_entries_delete()
+                remove_selceted_tasks()
         end
     end
     
