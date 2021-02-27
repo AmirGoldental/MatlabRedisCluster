@@ -10,8 +10,7 @@ cluster_status.num_pending = strip(numeric_stats{1});
 cluster_status.num_ongoing = strip(numeric_stats{2});
 cluster_status.num_finished = strip(numeric_stats{3});
 cluster_status.num_failed = strip(numeric_stats{4});
-workers_keys = mrc.redis_cmd('keys worker:*');  % Note => this line may be slow for many keys
-cluster_status.num_workers = num2str((numel(find(workers_keys == newline)) + 1)*(~isempty(workers_keys)));
+cluster_status.num_workers = mrc.redis_cmd('GET workers_count');  % Note => this line may be slow for many keys
 
 redis_uptime = strip(numeric_stats{5});
 redis_uptime(1: (strfind(redis_uptime, 'uptime_in_seconds') + length('uptime_in_seconds'))) = [];
@@ -27,15 +26,14 @@ end
 cluster_status.uptime = redis_uptime;
 
 if strcmpi(list_name, 'workers')
-    keys = workers_keys;
+    keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, 1:cluster_status.num_workers);
 else
     redis_list_name = [list_name '_tasks'];
     [keys, redis_cmd_prefix] = mrc.redis_cmd(['lrange ' redis_list_name ' ' num2str(idxs_to_load)]);
+    keys = split(keys, newline);
 end
 
-keys = split(keys, newline);
 output = struct();
-itter = 0;
 if isempty(keys{1})
     status = table();
     return
@@ -43,6 +41,7 @@ end
 
 redis_outputs = mrc.redis_cmd(cellfun(@(x) {['HGETALL ' x]}, keys), 'cmd_prefix', redis_cmd_prefix);
 
+itter = 0;
 for key = keys'
     itter = itter + 1;
     output.key(itter,1) = string(key{1});

@@ -1,7 +1,7 @@
 function join_as_worker()
 db_id = get_db_id();
 worker = struct();
-worker_key = ['worker:' mrc.redis_cmd('incr matlab_workers_count')];
+worker_key = ['worker:' mrc.redis_cmd('incr workers_count')];
 worker.started_on = datetime();
 
 mrc_dir = fileparts(fileparts(mfilename('fullpath')));
