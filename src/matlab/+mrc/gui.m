@@ -91,7 +91,9 @@ refresh()
                 data = table();
             end
             [new_data, numeric_data] = mrc.get_cluster_status(category, size(data,1) + [0 items_per_load-1]);
-            data = [data; new_data];
+            if ~isempty(new_data)
+                data = [data; new_data];
+            end
         end
         if size(data,1) < str2double(numeric_data.(['num_' category]))
             load_more_button.Enable = 'on';
