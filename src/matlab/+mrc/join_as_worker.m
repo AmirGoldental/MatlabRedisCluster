@@ -15,6 +15,7 @@ worker.current_task = 'None';
 worker.last_command = 'None';
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
+disp(worker)
 
 clear functions;
 clear global;
