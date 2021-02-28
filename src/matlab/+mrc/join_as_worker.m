@@ -14,7 +14,7 @@ worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
 worker.current_task = 'None';
 worker.last_command = 'None';
 worker.key = worker_key;
-set_redis_hash(worker_key, worker)
+set_redis_hash(worker_key, worker);
 
 clear functions;
 clear global;
@@ -22,18 +22,22 @@ restoredefaultpath
 fclose all;
 close all;
 
-worker_fig = worker_figure(worker_key, -1);
-
 conf = mrc.read_conf_file;
 if ~isfolder(conf.log_path)
     mkdir(conf.log_path);
 end
 
+if strcmpi(conf.show_close_figure, 'true')
+    worker_fig = worker_figure(worker_key, -1);
+end
+
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
 
 while strcmp(get_worker_status(), 'active')
-    perform_task(worker_key, db_id, conf.log_path)
-    worker_fig = worker_figure(worker_key, worker_fig);
+    perform_task(worker_key, db_id, conf.log_path)    
+    if strcmpi(conf.show_close_figure, 'true')
+        worker_fig = worker_figure(worker_key, worker_fig);
+    end
 end
 if ishandle(worker_fig)
     close(worker_fig)
