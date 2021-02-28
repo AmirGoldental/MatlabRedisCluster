@@ -20,7 +20,7 @@ set cur_dir=!cur_dir:~0,-1!
 :: pause
 :: exit /s
 :: :matlab_ok
-start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -batch "mrc.join_as_worker"
+start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -r "mrc.join_as_worker"
 timeout /t 30
 exit /s
 
