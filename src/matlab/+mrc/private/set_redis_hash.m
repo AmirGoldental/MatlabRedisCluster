@@ -11,7 +11,7 @@ end
 redis_cmds = cellfun(@(redis_key, matlab_struct) ...
     matlab_struct_to_redis_cmd(redis_key, matlab_struct), redis_keys, matlab_structs, ...
     'UniformOutput', false);
-mrc.redis_cmd(redis_cmds)
+mrc.redis_cmd(redis_cmds);
 end
 
 
