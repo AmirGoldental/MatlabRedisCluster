@@ -10,9 +10,12 @@ if numel(redis_keys) == 1 && isempty(redis_keys{1})
     redis_structs = struct();
     return
 end
-redis_cmds = cellfun( @(redis_key) ['HGETALL ' redis_key], redis_keys, 'UniformOutput', false);
+redis_cmds = cellfun( @(redis_key) ['HGETALL ' char(redis_key)], redis_keys, 'UniformOutput', false);
 redis_outputs = mrc.redis_cmd(redis_cmds);
-redis_structs = cellfun(@(redis_output) redis_output_to_struct(redis_output), redis_outputs);
+redis_structs = cellfun(@(redis_output) redis_output_to_struct(redis_output), redis_outputs, 'UniformOutput', false);
+if numel(redis_structs) == 1
+    redis_structs = redis_structs{1};
+end
 end
 
 function redis_struct = redis_output_to_struct(redis_output)

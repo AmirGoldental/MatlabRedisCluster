@@ -1,5 +1,7 @@
 function gui()
-db_id = get_db_id();
+persistent tasks
+persistent db_id
+
 items_per_load = 30;
 colors = struct();
 colors.background = '#eeeeee';
@@ -12,16 +14,15 @@ fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
     'NumberTitle', 'off', 'Units', 'normalized', ...
     'Color', colors.background, 'KeyPressFcn', @fig_key_press);
 fig.Position = [0.02 0.04 0.95 0.85];
-data = [];
+
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
 uimenu(actions_menu, 'Text', 'Clear finished', ...
-    'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL finished_tasks']));
+    'MenuSelectedFcn', @(~,~) clear_all_finished());
 uimenu(actions_menu, 'Text', 'Clear failed', ...
-    'MenuSelectedFcn', @(~,~) mrc.redis_cmd(['DEL failed_tasks']));
+    'MenuSelectedFcn', @(~,~) clear_all_failed());
 uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     'MenuSelectedFcn', @(~,~) restart_cluster, 'ForegroundColor', [0.7,0,0]);
-
 gui_status.active_filter_button = 'pending';
 button_length = 0.13;
 button_height = 0.04;
@@ -64,47 +65,27 @@ command_list.ContextMenu = context_menu.hndl;
 load_more_button = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Load More', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
     'Position', [0.99-button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) load_more, 'FontName', 'Consolas', 'FontSize', 12);
+    'callback', @(~,~) refresh(), 'FontName', 'Consolas', 'FontSize', 12);
 
 refresh()
 
-    function load_more()
-        refresh();
-    end
-
-
-    function filter_button_callback(category)
-        if ~strcmpi(gui_status.active_filter_button, category)
-            gui_status.active_filter_button = category;
-            data = table();
+    function download_tasks(task_ids, items_per_load)
+        % task_ids are sorted by priority
+        tasks2download = setdiff(task_ids, find(~cellfun(@isempty, tasks)), 'stable');
+        tasks2download = tasks2download(1:min(items_per_load, end));
+        keys = arrayfun(@(task_id) ['task:' num2str(task_id)], tasks2download(:), 'UniformOutput', false);
+        if isempty(keys)
+            return
+        elseif numel(keys) == 1
+            tasks(tasks2download) = {get_redis_hash(keys)};
+        else
+            tasks(tasks2download) = get_redis_hash(keys);
         end
-        refresh();
     end
-
 
     function refresh()
+        fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
         category = gui_status.active_filter_button;
-        if any(strcmpi(category, {'workers', 'ongoing'})) % those recive real time data
-            [data, numeric_data]  = mrc.get_cluster_status(category);            
-        else
-            if ~strcmp(db_id, get_db_id())
-                data = table();
-            end
-            [new_data, numeric_data] = mrc.get_cluster_status(category, size(data,1) + [0 items_per_load-1]);
-            if ~isempty(new_data)
-                data = [data; new_data];
-            end
-        end
-        if size(data,1) < str2double(numeric_data.(['num_' category]))
-            load_more_button.Enable = 'on';
-        else
-            load_more_button.Enable = 'off';
-        end
-        filter_buttons.pending.String = [numeric_data.num_pending ' Pending Tasks'];
-        filter_buttons.ongoing.String = [numeric_data.num_ongoing ' Ongoing Tasks'];
-        filter_buttons.finished.String = [numeric_data.num_finished ' Finished Tasks'];
-        filter_buttons.failed.String = [numeric_data.num_failed ' Failed Tasks'];
-        filter_buttons.workers.String = [numeric_data.num_workers ' Workers'];
         
         structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
         structfun(@(button) set(button, 'FontWeight', 'normal'), filter_buttons)
@@ -113,70 +94,138 @@ refresh()
         command_list.Value = [];
         command_list.String = {};
         
+        cluster_status = mrc.get_cluster_status();
+        filter_buttons.pending.String = [num2str(cluster_status.num_pending) ' Pending Tasks'];
+        filter_buttons.ongoing.String = [num2str(cluster_status.num_ongoing) ' Ongoing Tasks'];
+        filter_buttons.finished.String = [num2str(cluster_status.num_finished) ' Finished Tasks'];
+        filter_buttons.failed.String = [num2str(cluster_status.num_failed) ' Failed Tasks'];
+        filter_buttons.workers.String = [num2str(cluster_status.num_workers) ' Workers'];
+        
+        if strcmp(category, 'workers')
+            keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, (1:cluster_status.num_workers)');
+            
+            context_menu.retry.Visible = 'off';
+            load_more_button.Enable = 'off';
+            if numel(keys) == 0
+                command_list.String = '';
+                command_list.UserData.keys = [];                
+            end
+            if numel(keys) == 1
+                data_cells = {get_redis_hash(keys)};
+                keys = {keys};
+            else
+                data_cells = get_redis_hash(keys);
+            end
+                command_list.String = cellfun(@(datum, key) strcat("[", key, "] (", ...
+                    datum.computer, "): ",datum.status), data_cells, keys);
+                command_list.UserData.keys = keys;
+            return
+        end
+        
+        % allocate space for new tasks
+        if ~strcmp(db_id, get_db_id())
+            db_id = get_db_id();
+            tasks = cell(0);
+        end
+        if numel(tasks) < cluster_status.num_tasks
+            tasks{cluster_status.num_tasks} = {};
+        end
+        
+        task_ids = cellfun(@(task_key) str2double(task_key(6:end)), ...
+            split(mrc.redis_cmd(['lrange ' category '_tasks 0 -1']), newline));
+        if isnan(task_ids)
+            command_list.String = '';
+            command_list.UserData.keys = [];
+            return
+        end
+        downloaded_task_ids = intersect(task_ids, find(~cellfun(@isempty, tasks)), 'stable');
+        % find tasks that were downloaded but now the status is changed
+        changed_tasks = downloaded_task_ids(...
+            arrayfun(@(task_id) ~strcmpi(tasks{task_id}.status, category), downloaded_task_ids));
+        tasks(changed_tasks) = {[]};
+        download_tasks(task_ids, items_per_load) 
+        
+        downloaded_task_ids = intersect(task_ids, find(~cellfun(@isempty, tasks)), 'stable');
+        changed_tasks = downloaded_task_ids(...
+            arrayfun(@(task_id) ~strcmpi(tasks{task_id}.status, category), downloaded_task_ids));
+        tasks(changed_tasks) = {[]};
+        downloaded_task_ids = setdiff(downloaded_task_ids, changed_tasks, 'stable');
+        
         switch category
             case 'pending'
                 context_menu.retry.Visible = 'off';
-                if ~isempty(data)
-                    command_list.String = strcat("[", data.created_on, "] (",...
-                        data.created_by, "): ", data.command);
-                end
+                command_list.String = cellfun(@(task) strcat("[", task.created_on, "] (",...
+                    task.created_by, "): ", task.command), tasks(downloaded_task_ids));
             case 'ongoing'
                 context_menu.retry.Visible = 'off';
-                if ~isempty(data)
-                    command_list.String = strcat("[", data.started_on, "] (",...
-                        data.created_by, "->", data.worker, "): ", data.command);
-                end
+                command_list.String = cellfun(@(task) strcat("[", task.started_on, "] (",...
+                    task.created_by, "->", task.worker, "): ", task.command), tasks(downloaded_task_ids));
             case 'finished'
                 context_menu.retry.Visible = 'on';
-                if ~isempty(data)
-                    command_list.String = strcat("[", data.finished_on, "] (",...
-                        data.created_by, "->", data.worker, "): ", data.command);
-                end
+                command_list.String = cellfun(@(task) strcat("[", task.finished_on, "] (",...
+                    task.created_by, "->", task.worker, "): ", task.command), tasks(downloaded_task_ids));
             case 'failed'
-                context_menu.retry.Visible = 'on';
-                if ~isempty(data)
-                    command_list.String = strcat("[",data.failed_on, "] (",...
-                        data.created_by, "->", data.worker, "): ", data.command);
-                end
-            case 'workers'
-                context_menu.retry.Visible = 'off';
-                if ~isempty(data)
-                    command_list.String = strcat("[", data.key, "] (", ...
-                        data.computer, "): ",data.status);
-                end
+                context_menu.retry.Visible = 'on';                
+                command_list.String = cellfun(@(datum) strcat("[",datum.failed_on, "] (",...
+                        datum.created_by, "->", datum.worker, "): ", datum.command), tasks(downloaded_task_ids));
         end
-        fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
+        command_list.UserData.keys = cellfun(@(task) task.key, tasks(downloaded_task_ids), 'UniformOutput', false);
+
+        if size(command_list.String,1) < cluster_status.(['num_' category])
+            load_more_button.Enable = 'on';
+        else
+            load_more_button.Enable = 'off';
+        end
+        
+    end
+
+    function clear_all_finished()
+        mrc.redis_cmd('DEL finished_tasks')
+        refresh()
+    end
+
+    function clear_all_failed()
+        mrc.redis_cmd('DEL failed_tasks')
+        refresh()
+    end
+
+    function filter_button_callback(category)
+        if ~strcmpi(gui_status.active_filter_button, category)
+            gui_status.active_filter_button = category;
+        end
+        refresh();
     end
 
     function details()
-        entries = command_list.Value;
-        if isempty(data)
-            return
+        
+        keys = command_list.UserData.keys(command_list.Value);
+        cellfun(@show_key, keys);
+    end
+    function show_key(key)
+        key_struct = get_redis_hash(key);        
+        strcells = strcat(fieldnames(key_struct), ' : "', cellstr(struct2cell(key_struct)), '"');
+        for cell_idx = 1:numel(strcells)
+            cell_content = strcells{cell_idx};
+            cell_content = join(split(cell_content, ',\n'), [', ' newline '  ']);
+            strcells{cell_idx} = cell_content{1};
         end
-        for entry = entries(:)'
-            strcells = strcat(fieldnames(table2struct(data(entry,:))), ' : "', cellstr(table2cell(data(entry,:))'), '"');
-            for cell_idx = 1:numel(strcells)
-                cell_content = strcells{cell_idx};
-                cell_content = join(split(cell_content, ',\n'), [', ' newline '  ']);
-                strcells{cell_idx} = cell_content{1};
-            end
-            Hndl = figure('MenuBar', 'none', 'Name', 'details',...
-                'NumberTitle' ,'off', 'Units', 'normalized');
-            Hndl.Position = [0.05 0.05 0.9 0.9];
-            uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
-                'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
-                'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
-                'FontName', 'Consolas', 'HorizontalAlignment', 'left');
-            drawnow
-            if any(strcmpi(gui_status.active_filter_button, {'failed', 'finished'}))
-                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.01 0.01 0.1 0.05], 'FontSize', 13, ...
-                    'String', 'Retry', 'Callback', @(~,~) retry_task(table2struct(data(entry,:)), 'refresh'))
-                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
-                    'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(table2struct(data(entry,:))))
-            end
+        Hndl = figure('MenuBar', 'none', 'Name', 'details',...
+            'NumberTitle' ,'off', 'Units', 'normalized');
+        Hndl.Position = [0.05 0.05 0.9 0.9];
+        uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
+            'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
+            'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
+            'FontName', 'Consolas', 'HorizontalAlignment', 'left');
+        drawnow
+        if any(strcmpi(gui_status.active_filter_button, {'failed', 'finished'}))
+            uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                'Position', [0.01 0.01 0.1 0.05], 'FontSize', 13, ...
+                'String', 'Retry', 'Callback', @(~,~) retry_task(key_struct, 'refresh'))
+            uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
+                'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
         end
+        
     end
 
     function listbox_callback()
@@ -199,31 +248,26 @@ refresh()
     function remove_selceted_tasks()
         switch gui_status.active_filter_button
             case 'pending'
-                tasks_to_stop = command_list.Value;
-                for task_key = data.key(tasks_to_stop)'
-                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key) '"'])
+                for task_key = command_list.UserData.keys(command_list.Value)
+                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key{1}) '"'])
                 end
             case 'ongoing'
-                tasks_to_stop = command_list.Value;
-                for task_key = data.key(tasks_to_stop)'
-                    worker_key = mrc.redis_cmd(['HGET ' char(task_key) ' worker']);
+                for task_key = command_list.UserData.keys(command_list.Value)
+                    worker_key = mrc.redis_cmd(['HGET ' char(task_key{1}) ' worker']);
                     mrc.redis_cmd(['HSET ' char(worker_key) ' status restart'])
                 end
             case 'finished'
-                tasks_to_clear = command_list.Value;
-                for task_key = data.key(tasks_to_clear)'
-                    mrc.redis_cmd(['LREM finished_tasks 0 "' char(task_key) '"'])
+                for task_key = command_list.UserData.keys(command_list.Value)
+                    mrc.redis_cmd(['LREM finished_tasks 0 "' char(task_key{1}) '"'])
                 end
             case 'failed'
-                tasks_to_clear = command_list.Value;
-                for task_key = data.key(tasks_to_clear)'
-                    mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key) '"'])
+                for task_key = command_list.UserData.keys(command_list.Value)
+                    mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key{1}) '"'])
                 end
             case 'workers'
-                workers_to_kill = command_list.Value;
-                for worker_key = data.key(workers_to_kill)'
-                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key) ' status']), 'active')
-                        mrc.redis_cmd(['HSET ' char(worker_key) ' status kill'])
+                for worker_key = command_list.UserData.keys(command_list.Value)
+                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'active')
+                        mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status kill'])
                     end
                 end
         end
@@ -239,27 +283,29 @@ refresh()
         end
     end
     
-    function retry_selceted_tasks()        
-        tasks_idx_to_retry = command_list.Value;
-        for task_idx = tasks_idx_to_retry(:)'
-            task = table2struct(data(tasks_idx_to_retry,:));
-            retry_task(task)
-        end
+    function retry_selceted_tasks()
+        task_keys = command_list.UserData.keys(command_list.Value);
+        task_keys = cellfun(@(task_key) char(task_key), task_keys, 'UniformOutput', false);
+        task_ids = cellfun(@(task_key) str2double(task_key(6:end)), task_keys);
+        download_tasks(task_ids, items_per_load) 
+        cellfun(@retry_task, tasks(task_ids));
         refresh()
     end
 
     function retry_task(task, varargin)
-         mrc.new_task(task.command, 'path', task.path);
+         mrc.new_task(task.command, 'path', task.path2add);
          if any(strcmpi('refresh', varargin))
              refresh();
          end
     end
     
     function retry_task_on_this_machine(task)
-        path2add = task.path2add;
+        path2add = char(task.path2add);
         if ~strcmpi(path2add, 'None')
+            disp(['>> addpath(' path2add ')']);
             evalin('base', ['addpath(' path2add ')'])
         end
+        disp(['>> ' char(task.command)])
         evalin('base', task.command)
     end
 
