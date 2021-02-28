@@ -196,11 +196,11 @@ refresh()
         refresh();
     end
 
-    function details()
-        
+    function details()        
         keys = command_list.UserData.keys(command_list.Value);
         cellfun(@show_key, keys);
     end
+
     function show_key(key)
         key_struct = get_redis_hash(key);        
         strcells = strcat(fieldnames(key_struct), ' : "', cellstr(struct2cell(key_struct)), '"');
@@ -265,7 +265,7 @@ refresh()
                     mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key{1}) '"'])
                 end
             case 'workers'
-                for worker_key = command_list.UserData.keys(command_list.Value)
+                for worker_key = command_list.UserData.keys(command_list.Value)'
                     if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'active')
                         mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status kill'])
                     end
