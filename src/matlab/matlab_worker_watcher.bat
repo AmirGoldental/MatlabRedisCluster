@@ -28,6 +28,8 @@ if "%res%"=="failed" (
     call :logger INFO redis ping ponged
 ) 
 
+set DB_ID=INITIAL_DB_ID
+
 :main_loop
     @timeout %wrapper_loop_wait_seconds% >nul
 
@@ -35,23 +37,28 @@ if "%res%"=="failed" (
     call :is_pid_alive !matlab_pid!
     set matlab_status=!res!
 
+    call :send_redis get db_id
+    if "!res!"=="failed" (
+        call :logger WARNING db-id was not found, wait and retry
+        goto main_loop
+    ) else (
+        if "!DB_ID!"=="INITIAL_DB_ID" (
+            set DB_ID=!res!
+        )
+        if not "!DB_ID!"=="!res!" (
+            call :logger WARNING expect db-id !DB_ID! got !res! restart worker
+            taskkill /PID !matlab_pid!
+            call :logger INFO worker restart
+            call %~dp0%start_matlab_worker.bat
+            exit /s
+        )
+    )
+    
     :: check redis status
     call :send_redis hget !worker_key! status
     if "!res!"=="failed" (
         call :logger WARNING redis failed with command !redis_cmd! hget !worker_key! status
-        call :send_redis ping
-        if "!res!"=="failed" (
-            call :logger WARNING failed pinging redis, waiting
-            goto main_loop
-        ) else (
-            call :logger WARNING redis inconsistent, probably flushed, restart            
-            call :logger INFO kill matlab worker !worker_key! of pid=!matlab_pid!
-            taskkill /PID !matlab_pid!
-
-            call :logger INFO worker restart
-            call %~dp0%start_matlab_worker.bat
-            exit /s
-        ) 
+        goto main_loop
     )
     set worker_status=!res!
 
@@ -62,7 +69,6 @@ if "%res%"=="failed" (
         call :logger INFO matlab died        
         call :move_current_task_to_failed !worker_key! "worker died"
         call :send_redis hset !worker_key! status dead
-
         if "%matlab_restart_on_fail%"=="true" (
             call %~dp0%start_matlab_worker.bat
         )
@@ -71,7 +77,6 @@ if "%res%"=="failed" (
 
     if "!worker_status!"=="restart" (        
         call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
-
         call :logger INFO worker restart
         call %~dp0%start_matlab_worker.bat
         exit /s
