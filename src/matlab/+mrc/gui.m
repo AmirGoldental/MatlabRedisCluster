@@ -94,7 +94,8 @@ refresh()
             load_more_button.Enable = 'off';
             if numel(keys) == 0
                 command_list.String = '';
-                command_list.UserData.keys = [];                
+                command_list.UserData.keys = [];  
+                return              
             end
             if numel(keys) == 1
                 data_cells = {get_redis_hash(keys)};
