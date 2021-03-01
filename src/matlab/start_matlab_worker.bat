@@ -6,7 +6,6 @@ if "%1" == "" goto fill_params_path
 set params_path=%1
 :fill_params_path
 
-
 call :logger INFO load parameters from %params_path%
 for /f "tokens=1,* delims==" %%x in ('type "%params_path%"') do call :run_and_set %%x %%y
 

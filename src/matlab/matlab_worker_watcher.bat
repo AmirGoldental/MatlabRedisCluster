@@ -11,6 +11,8 @@ SETLOCAL EnableDelayedExpansion
 set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
+set start_matlab_worker_path=%~dp0%start_matlab_worker.bat
+set DB_ID=INITIAL_DB_ID
 
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
@@ -28,7 +30,6 @@ if "%res%"=="failed" (
     call :logger INFO redis ping ponged
 ) 
 
-set DB_ID=INITIAL_DB_ID
 
 :main_loop
     @timeout %wrapper_loop_wait_seconds% >nul
@@ -37,24 +38,8 @@ set DB_ID=INITIAL_DB_ID
     call :is_pid_alive !matlab_pid!
     set matlab_status=!res!
 
-    call :send_redis get db_id
-    if "!res!"=="failed" (
-        call :logger WARNING db-id was not found, wait and retry
-        goto main_loop
-    ) else (
-        if "!DB_ID!"=="INITIAL_DB_ID" (
-            set DB_ID=!res!
-        )
-        if not "!DB_ID!"=="!res!" (
-            call :logger WARNING expect db-id !DB_ID! got !res! restart worker
-            taskkill /PID !matlab_pid!
-            call :logger INFO worker restart
-            call %~dp0%start_matlab_worker.bat
-            exit /s
-        )
-    )
-    
     :: check redis status
+    call :redis_check_id
     call :send_redis hget !worker_key! status
     if "!res!"=="failed" (
         call :logger WARNING redis failed with command !redis_cmd! hget !worker_key! status
@@ -66,11 +51,11 @@ set DB_ID=INITIAL_DB_ID
 
     :: main logic
     if "!matlab_status!"=="off" (     
-        call :logger INFO matlab died        
+        call :logger INFO matlab died    
         call :move_current_task_to_failed !worker_key! "worker died"
         call :send_redis hset !worker_key! status dead
         if "%matlab_restart_on_fail%"=="true" (
-            call %~dp0%start_matlab_worker.bat
+            call %start_matlab_worker_path%
         )
         exit /s
     )
@@ -78,7 +63,7 @@ set DB_ID=INITIAL_DB_ID
     if "!worker_status!"=="restart" (        
         call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         call :logger INFO worker restart
-        call %~dp0%start_matlab_worker.bat
+        call %start_matlab_worker_path%
         exit /s
     )
 
@@ -95,6 +80,26 @@ for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
 echo [%1] %date%T%time% %ALL_BUT_FIRST%
 exit /b
 
+:redis_check_id
+call :send_redis get db_id
+if "!res!"=="failed" (
+    call :logger WARNING db-id was not found or redis timeout, wait and retry
+    @timeout %wrapper_loop_wait_seconds% >nul
+    goto redis_check_id
+) else (
+    if "!DB_ID!"=="INITIAL_DB_ID" (
+        set DB_ID=!res!
+    )
+    if not "!DB_ID!"=="!res!" (
+        call :logger WARNING expect db-id !DB_ID! got !res! restart worker
+        taskkill /PID !matlab_pid!
+        call :logger INFO worker restart
+        call %start_matlab_worker_path%
+        exit /s
+    )
+)
+exit /b
+
 :kill_wait_and_deal_with_current_task
 call :logger INFO kill matlab worker %1 of pid=%2
 taskkill /F /PID %2
@@ -103,7 +108,7 @@ taskkill /F /PID %2
 call :logger DEBUG still alive pid=%2
 call :is_pid_alive %2
 if !res!==on (goto wait_check_pid_alive)
-call :logger DEBUG process dead check move task to failed
+call :logger DEBUG process dead check move task to failed    
 call :move_current_task_to_failed %1 "worker killed"        
 call :send_redis hset %1 status dead
 
@@ -128,7 +133,8 @@ if %month-num%==12 set mo-name=Dec
 set res=%day-num%-%mo-name%-%year-num% %time%
 exit /b
 
-:move_current_task_to_failed
+:move_current_task_to_failed 
+call :redis_check_id
 call :send_redis hget %1 current_task
 if not "!res!"=="failed" if not "!res!"=="None" (       
     set current_task=!res!
