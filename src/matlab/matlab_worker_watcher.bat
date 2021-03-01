@@ -109,12 +109,32 @@ call :send_redis hset %1 status dead
 
 exit /b
 
+:datestr
+set day-num=%date:~0,2%
+set year-num=%date:~6,4%
+set month-num=%date:~3,2%
+if %month-num%==01 set mo-name=Jan
+if %month-num%==02 set mo-name=Feb
+if %month-num%==03 set mo-name=Mar
+if %month-num%==04 set mo-name=Apr
+if %month-num%==05 set mo-name=May
+if %month-num%==06 set mo-name=Jun
+if %month-num%==07 set mo-name=Jul
+if %month-num%==08 set mo-name=Aug
+if %month-num%==09 set mo-name=Sep
+if %month-num%==10 set mo-name=Oct
+if %month-num%==11 set mo-name=Nov
+if %month-num%==12 set mo-name=Dec
+set res=%day-num%-%mo-name%-%year-num% %time%
+exit /b
+
 :move_current_task_to_failed
 call :send_redis hget %1 current_task
 if not "!res!"=="failed" if not "!res!"=="None" (       
     set current_task=!res!
     :: move task from ongoing to error and push error message
-    call :send_redis hset !current_task! failed_on "%date% %time%"
+    call :datestr
+    call :send_redis hset !current_task! failed_on "!res!"
     call :send_redis hset !current_task! status failed
     call :send_redis hset !current_task! err_msg %2
     call :send_redis lrem ongoing_tasks 0 !current_task!
