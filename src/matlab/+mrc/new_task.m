@@ -42,13 +42,7 @@ cmds = cellfun(redis_add_task, tasks, 'UniformOutput', false);
 keys = mrc.redis_cmd(cmds);
 
 if any(strcmpi('wait', varargin))
-    for key = keys
-        task_status = mrc.redis_cmd(['HGET ' key{1} ' status']);
-        while any(strcmpi(task_status,{'pending', 'ongoing'}))
-            pause(3)
-            task_status = mrc.redis_cmd(['HGET ' key{1} ' status']);
-        end
-    end
+    mrc.wait(keys);
 end
     
 if length(tasks)==1
