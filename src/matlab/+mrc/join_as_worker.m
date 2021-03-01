@@ -1,9 +1,14 @@
-function join_as_worker()
+function join_as_worker(worker_id)
 db_id = get_db_id();
 worker = struct();
-worker_key = ['worker:' mrc.redis_cmd('incr workers_count')];
-worker.started_on = datetime();
 
+if exist('worker_id', 'var')
+    worker_key = ['worker:' worker_id];
+else
+    worker_key = ['worker:' mrc.redis_cmd('incr workers_count')];    
+end
+
+worker.started_on = datetime();
 mrc_dir = fileparts(fileparts(mfilename('fullpath')));
 system(['start "worker_watcher" /D "' mrc_dir ...
     '" matlab_worker_watcher.bat mrc_client.conf ' worker_key ' ' ...
@@ -40,11 +45,12 @@ while strcmp(get_worker_status(), 'active')
         worker_fig = worker_figure(worker_key, worker_fig);
     end
 end
-if ishandle(worker_fig)
+if strcmpi(conf.show_close_figure, 'true') && ishandle(worker_fig)
     close(worker_fig)
 end
 
 end
+
 function worker_fig = worker_figure(worker_key, worker_fig)
 if ishandle(worker_fig)
     return
