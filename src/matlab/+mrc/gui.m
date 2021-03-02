@@ -10,11 +10,13 @@ colors.red = '#cf4229';
 colors.strong = '#bbbbbb';
 colors.weak = '#dddddd';
 
+db_id = get_db_id();
+conf = mrc.read_conf_file;
+
 fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
     'NumberTitle', 'off', 'Units', 'normalized', ...
     'Color', colors.background, 'KeyPressFcn', @fig_key_press);
 fig.Position = [0.02 0.04 0.95 0.85];
-
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
 uimenu(actions_menu, 'Text', 'Clear finished', ...
@@ -198,7 +200,7 @@ refresh()
         Hndl = figure('MenuBar', 'none', 'Name', 'details',...
             'NumberTitle' ,'off', 'Units', 'normalized');
         Hndl.Position = [0.05 0.05 0.9 0.9];
-        uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
+        edit_widget = uicontrol(Hndl, 'Style', 'edit', 'Units', 'normalized', 'max', 2, ...
             'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
             'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
             'FontName', 'Consolas', 'HorizontalAlignment', 'left');
@@ -210,8 +212,15 @@ refresh()
             uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
                 'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
                 'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
-        end
-        
+            
+            db_id = get_db_id();
+            logfile = fullfile(conf.log_path, strrep([char(key_struct.key) '_' char(key_struct.worker) '_' db_id '.txt'], ':', '-'));
+            if exist(logfile, 'file')
+                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                    'Position', [0.33 0.01 0.2 0.05], 'FontSize', 13, ...
+                    'String', 'Load Log', 'Callback', @(~,~) set(edit_widget, 'String', textread(logfile, '%[^\n]')))                
+            end            
+        end        
     end
 
     function listbox_callback()
