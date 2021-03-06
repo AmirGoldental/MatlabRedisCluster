@@ -109,7 +109,7 @@ refresh()
         end
         
         task_ids = cellfun(@(task_key) str2double(task_key(6:end)), ...
-            split(mrc.redis_cmd(['lrange ' category '_tasks 0 -1']), newline));
+            split(mrc.redis_cmd(['LRANGE ' category '_tasks 0 500']), newline));
         if isnan(task_ids)
             command_list.String = '';
             command_list.UserData.keys = [];
