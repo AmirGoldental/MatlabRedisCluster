@@ -1,6 +1,6 @@
 function gui()
 
-items_per_load = 30;
+items_per_load = 10;
 colors = struct();
 colors.background = '#eeeeee';
 colors.list_background = '#cccccc';
