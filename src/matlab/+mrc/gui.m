@@ -1,6 +1,4 @@
 function gui()
-persistent tasks
-persistent db_id
 
 items_per_load = 30;
 colors = struct();
@@ -10,7 +8,6 @@ colors.red = '#cf4229';
 colors.strong = '#bbbbbb';
 colors.weak = '#dddddd';
 
-db_id = get_db_id();
 conf = mrc.read_conf_file;
 
 fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
@@ -111,15 +108,6 @@ refresh()
             return
         end
         
-        % allocate space for new tasks
-        if ~strcmp(db_id, get_db_id())
-            db_id = get_db_id();
-            tasks = cell(0);
-        end
-        if numel(tasks) < cluster_status.num_tasks
-            tasks{cluster_status.num_tasks} = {};
-        end
-        
         task_ids = cellfun(@(task_key) str2double(task_key(6:end)), ...
             split(mrc.redis_cmd(['lrange ' category '_tasks 0 -1']), newline));
         if isnan(task_ids)
@@ -127,37 +115,43 @@ refresh()
             command_list.UserData.keys = [];
             return
         end
-                
-        downloaded_task_ids = intersect(task_ids, find(~cellfun(@isempty, tasks)), 'stable');
-        % find tasks that were downloaded but now the status is changed
-        changed_tasks = downloaded_task_ids(...
-            arrayfun(@(task_id) ~strcmpi(tasks{task_id}.status, category), downloaded_task_ids));
-        tasks(changed_tasks) = {[]};
         
-        tasks = mrc.get_tasks(tasks, task_ids, items_per_load);
+        % not downloaded yet
+        tasks2download = setdiff(task_ids, find(~cellfun(@isempty, mrc.get_tasks())), 'stable');
+        tasks2download = tasks2download(1:min(items_per_load, end));
+        tasks = mrc.get_tasks('download', tasks2download);
         
-        downloaded_task_ids = intersect(task_ids, find(~cellfun(@isempty, tasks)), 'stable');
-        downloaded_task_ids = setdiff(downloaded_task_ids, changed_tasks, 'stable');
+        % fix inconsistent status
+        tasks2update = tasks(task_ids(task_ids<=numel(tasks)));
+        tasks2update = tasks2update(~cellfun(@isempty,tasks2update));
+        tasks2update = tasks2update(cellfun(@(task) ~strcmpi(task.status, category), tasks2update));
+        tasks2update = cellfun(@(task) str2double(task.id), tasks2update);
+        tasks = mrc.get_tasks('download', tasks2update);
+        
+        % remove not downloaded yet or other status
+        tasks = tasks(task_ids(task_ids<=numel(tasks)));
+        tasks = tasks(~cellfun(@isempty, tasks));
+        tasks = tasks(cellfun(@(task) strcmpi(task.status, category), tasks));
         
         switch category
             case 'pending'
                 context_menu.retry.Visible = 'off';
                 command_list.String = cellfun(@(task) strcat("[", task.created_on, "] (",...
-                    task.created_by, "): ", task.command), tasks(downloaded_task_ids));
+                    task.created_by, "): ", task.command), tasks);
             case 'ongoing'
                 context_menu.retry.Visible = 'off';
                 command_list.String = cellfun(@(task) strcat("[", task.started_on, "] (",...
-                    task.created_by, "->", task.worker, "): ", task.command), tasks(downloaded_task_ids));
+                    task.created_by, "->", task.worker, "): ", task.command), tasks);
             case 'finished'
                 context_menu.retry.Visible = 'on';
                 command_list.String = cellfun(@(task) strcat("[", task.finished_on, "] (",...
-                    task.created_by, "->", task.worker, "): ", task.command), tasks(downloaded_task_ids));
+                    task.created_by, "->", task.worker, "): ", task.command), tasks);
             case 'failed'
                 context_menu.retry.Visible = 'on';                
                 command_list.String = cellfun(@(datum) strcat("[",datum.failed_on, "] (",...
-                        datum.created_by, "->", datum.worker, "): ", datum.command), tasks(downloaded_task_ids));
+                        datum.created_by, "->", datum.worker, "): ", datum.command), tasks);
         end
-        command_list.UserData.keys = cellfun(@(task) task.key, tasks(downloaded_task_ids), 'UniformOutput', false);
+        command_list.UserData.keys = cellfun(@(task) task.key, tasks, 'UniformOutput', false);
 
         if size(command_list.String,1) < cluster_status.(['num_' category])
             load_more_button.Enable = 'on';
@@ -213,8 +207,7 @@ refresh()
                 'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
                 'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
             
-            db_id = get_db_id();
-            logfile = fullfile(conf.log_path, strrep([char(key_struct.key) '_' char(key_struct.worker) '_' db_id '.txt'], ':', '-'));
+            logfile = fullfile(conf.log_path, strrep([char(key_struct.key) '_' char(key_struct.worker) '_' get_db_id() '.txt'], ':', '-'));
             if exist(logfile, 'file')
                 uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
                     'Position', [0.33 0.01 0.2 0.05], 'FontSize', 13, ...
@@ -282,8 +275,7 @@ refresh()
         task_keys = command_list.UserData.keys(command_list.Value);
         task_keys = cellfun(@(task_key) char(task_key), task_keys, 'UniformOutput', false);
         task_ids = cellfun(@(task_key) str2double(task_key(6:end)), task_keys);
-        download_tasks(task_ids, items_per_load) 
-        cellfun(@retry_task, tasks(task_ids));
+        cellfun(@retry_task, mrc.get_tasks('download', task_ids, 'get_by_id', task_ids));
         refresh()
     end
 

@@ -60,5 +60,23 @@
             ]
          }
       ]
+   },
+   "mrc.get_tasks": {
+      "inputs": [
+         {
+            "name": "download",
+            "kind": "namevalue",
+            "type": [
+               "vector"
+            ]
+         },
+         {
+            "name": "get_by_id",
+            "kind": "namevalue",
+            "type": [
+               "vector"
+            ]
+         }
+      ]
    }
 }
