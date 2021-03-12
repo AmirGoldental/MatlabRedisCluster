@@ -108,14 +108,14 @@ refresh()
                 return              
             end
             if numel(keys) == 1
-                data_cells = {get_redis_hash(keys)};
-                keys = {keys};
+                workers = {get_redis_hash(keys)};
             else
-                data_cells = get_redis_hash(keys);
+                workers = get_redis_hash(keys);
             end
-                command_list.String = cellfun(@(datum, key) strcat("[", key, "] (", ...
-                    datum.computer, "): ",datum.status), data_cells, keys);
-                command_list.UserData.keys = keys;
+            workers = workers(cellfun(@(worker) ~any(strcmpi(worker.status, {'kill','dead'})), workers));
+            command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
+                worker.computer, "): ", worker.status), workers);
+            command_list.UserData.keys = cellfun(@(worker) worker.key, workers);
             return
         end
         
