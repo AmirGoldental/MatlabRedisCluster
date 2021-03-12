@@ -14,7 +14,7 @@
             ]
          },
          {
-            "name": "path",
+            "name": "addpath",
             "kind": "namevalue",
             "type": [
                "char"

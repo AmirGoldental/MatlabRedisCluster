@@ -15,10 +15,10 @@ for i = 1:length(commands)
     tasks{i} = task;
 end
 
-if any(strcmpi('path', varargin))
-    path2add = varargin{find(strcmpi('path', varargin), 1) + 1};
+if any(strcmpi('addpath', varargin))
+    task.path2add = varargin{find(strcmpi('path', varargin), 1) + 1};
 else
-    path2add = 'None';
+    task.path2add = 'None';
 end
 
 lua_add_task = ['"'...
@@ -39,7 +39,7 @@ redis_add_task = @(task) ['eval ' lua_add_task ...
     ' ' str_to_redis_str(task.command) ...
     ' ' str_to_redis_str(task.created_by) ...
     ' ' str_to_redis_str(task.created_on) ...
-    ' ' str_to_redis_str(path2add) ];
+    ' ' str_to_redis_str(task.path2add) ];
 cmds = cellfun(redis_add_task, tasks, 'UniformOutput', false);
 keys = mrc.redis_cmd(cmds);
 
