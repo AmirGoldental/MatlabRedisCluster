@@ -38,12 +38,21 @@ if strcmpi(conf.show_close_figure, 'true')
 end
 
 get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
-
-while strcmp(get_worker_status(), 'active')
+worker_status = get_worker_status();
+while any(strcmp(worker_status, {'active', 'suspended'}))
+    if strcmp(worker_status, 'suspended')
+        disp([char(datetime) ': Worker was suspended'])
+        % to wakeup worker, 'LPUSH worker:n:wakeup 1'
+        mrc.redis_cmd({['BLPOP ' worker_key ':wakeup 0'],...
+            ['DEL ' worker_key ':wakeup'], ...
+            ['HSET ' worker_key ' status active']});
+        disp([char(datetime) ': Worker wokeup'])
+    end
     perform_task(worker_key, db_id, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
         worker_fig = worker_figure(worker_key, worker_fig);
     end
+    worker_status = get_worker_status();
 end
 if strcmpi(conf.show_close_figure, 'true') && ishandle(worker_fig)
     close(worker_fig)

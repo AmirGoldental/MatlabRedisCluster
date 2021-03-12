@@ -55,11 +55,22 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'Callback', @(~,~) listbox_callback, 'KeyPressFcn', @fig_key_press, ...
     'BackgroundColor', colors.list_background, 'Value', 1);
 
-context_menu.hndl = uicontextmenu(fig);
-context_menu.clear = uimenu(context_menu.hndl, 'Text', 'Clear/Abort', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-context_menu.retry = uimenu(context_menu.hndl, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks, 'Visible', 'off');
-context_menu.refresh = uimenu(context_menu.hndl, 'Text', 'Refresh (F5)', 'MenuSelectedFcn', @(~,~) refresh);
-command_list.ContextMenu = context_menu.hndl;
+context_menus.pending = uicontextmenu(fig);
+uimenu(context_menus.pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+
+context_menus.ongoing = uicontextmenu(fig);
+uimenu(context_menus.ongoing, 'Text', 'Abort', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+
+context_menus.failed = uicontextmenu(fig);
+uimenu(context_menus.failed, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
+context_menus.finished = uicontextmenu(fig);
+uimenu(context_menus.finished, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
+context_menus.workers = uicontextmenu(fig);
+uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) kill_selceted_workers);
+uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) suspend_selceted_workers);
+uimenu(context_menus.workers, 'Text', 'Wake Up', 'MenuSelectedFcn', @(~,~) wakeup_selceted_workers);
 
 load_more_button = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Load More', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
@@ -71,7 +82,7 @@ refresh()
     function refresh()
         fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
         category = gui_status.active_filter_button;
-        
+        command_list.ContextMenu = context_menus.(category);
         structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
         structfun(@(button) set(button, 'FontWeight', 'normal'), filter_buttons)
         filter_buttons.(category).BackgroundColor = colors.strong;
@@ -88,8 +99,6 @@ refresh()
         
         if strcmp(category, 'workers')
             keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, (1:cluster_status.num_workers)');
-            
-            context_menu.retry.Visible = 'off';
             load_more_button.Enable = 'off';
             if numel(keys) == 0
                 command_list.String = '';
@@ -135,19 +144,15 @@ refresh()
         
         switch category
             case 'pending'
-                context_menu.retry.Visible = 'off';
                 command_list.String = cellfun(@(task) strcat("[", task.created_on, "] (",...
                     task.created_by, "): ", task.command), tasks);
             case 'ongoing'
-                context_menu.retry.Visible = 'off';
                 command_list.String = cellfun(@(task) strcat("[", task.started_on, "] (",...
                     task.created_by, "->", task.worker, "): ", task.command), tasks);
             case 'finished'
-                context_menu.retry.Visible = 'on';
                 command_list.String = cellfun(@(task) strcat("[", task.finished_on, "] (",...
                     task.created_by, "->", task.worker, "): ", task.command), tasks);
-            case 'failed'
-                context_menu.retry.Visible = 'on';                
+            case 'failed'           
                 command_list.String = cellfun(@(datum) strcat("[",datum.failed_on, "] (",...
                         datum.created_by, "->", datum.worker, "): ", datum.command), tasks);
         end
@@ -232,7 +237,35 @@ refresh()
             refresh;
         end
     end
+
+    function kill_selceted_workers()
+        for worker_key = command_list.UserData.keys(command_list.Value)'
+            if ~strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'dead')
+                mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status kill'])
+            end
+        end
+        refresh;
+    end
+
+    function suspend_selceted_workers()
+        for worker_key = command_list.UserData.keys(command_list.Value)'
+            if ~strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'dead')
+                mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status suspended'])
+            end
+        end
+        refresh;
+    end
     
+    function wakeup_selceted_workers()
+        for worker_key = command_list.UserData.keys(command_list.Value)'
+            if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'suspended')
+                mrc.redis_cmd(['LPUSH ' char(worker_key{1}) ':wakeup 1'])
+            end
+        end
+        pause(1)
+        refresh;
+    end
+
     function remove_selceted_tasks()
         switch gui_status.active_filter_button
             case 'pending'
@@ -252,14 +285,8 @@ refresh()
                 for task_key = command_list.UserData.keys(command_list.Value)
                     mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key{1}) '"'])
                 end
-            case 'workers'
-                for worker_key = command_list.UserData.keys(command_list.Value)'
-                    if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'active')
-                        mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status kill'])
-                    end
-                end
         end
-        refresh()
+        refresh;
     end
 
     function fig_key_press(~, key_data)
