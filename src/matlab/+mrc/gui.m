@@ -16,6 +16,8 @@ fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
 fig.Position = [0.02 0.04 0.95 0.85];
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
+uimenu(actions_menu, 'Text', 'Abort all tasks', ...
+    'MenuSelectedFcn', @(~,~) abort_all_tasks());
 uimenu(actions_menu, 'Text', 'Clear finished', ...
     'MenuSelectedFcn', @(~,~) clear_all_finished());
 uimenu(actions_menu, 'Text', 'Clear failed', ...
@@ -164,6 +166,16 @@ refresh()
             load_more_button.Enable = 'off';
         end
         
+    end
+
+    function abort_all_tasks()        
+        mrc.redis_cmd('DEL pending_tasks');        
+        ongoing_tasks = split(mrc.redis_cmd('LRANGE ongoing_tasks 0 -1'), newline);
+        if isempty(ongoing_tasks{1})
+            return
+        end
+        mrc.redis_cmd(cellfun(@(task) ['HSET ' char(task.worker) ' status restart'],...
+            get_redis_hash(ongoing_tasks), 'UniformOutput', false));
     end
 
     function clear_all_finished()
