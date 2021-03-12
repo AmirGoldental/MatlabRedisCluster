@@ -21,6 +21,7 @@ else
 end
 
 if iscell(command)
+    command = command(:);
     cmd = '';
     output = '';
     for command_idx = 1:numel(command)
@@ -48,9 +49,13 @@ if iscell(command)
     end
     output = split(output, '-REDIS-CMD-BREAK-');
     output(end) = [];
-    if any(strncmp(output, 'ERR', 3))
-        % Todo: better pinpoint error
-        error(strjoin(output, newline));
+    output = strip(output);
+    error_idxs = find(strncmp(output, 'ERR', 3));
+    if ~isempty(error_idxs)
+        error_strings = cellfun(@(cmd, err, idx) ...
+            ['error for command #' num2str(idx) ' (' cmd '): ' err(5:end)], ...
+            command(error_idxs), output(error_idxs), num2cell(error_idxs), 'UniformOutput', false); 
+        error(strjoin(error_strings, newline));
     end
 else
     redis_cmd = [redis_cmd_prefix char(command)];
