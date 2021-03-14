@@ -16,7 +16,7 @@ for i = 1:length(commands)
 end
 
 if any(strcmpi('addpath', varargin))
-    task.path2add = varargin{find(strcmpi('path', varargin), 1) + 1};
+    task.path2add = varargin{find(strcmpi('addpath', varargin), 1) + 1};
 else
     task.path2add = 'None';
 end
