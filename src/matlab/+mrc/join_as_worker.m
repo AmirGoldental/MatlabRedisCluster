@@ -104,13 +104,16 @@ task = get_redis_hash(task_key);
 % Start logging:
 diary(fullfile(log_file, strrep([task_key '_' worker_key '_' db_id '.txt'], ':', '-')));
 
+disp(' --- ')
 disp(task)
 
 try
     % Perform the task
     if ~strcmpi(task.path2add, 'None')
         addpath(task.path2add)
+        disp(['>> addpath(''' char(task.path2add) ''')']);
     end
+    disp(['>> ' char(task.command)]);
     eval(task.command)
     if strcmp(db_id, get_db_id())
         dependent_tasks = split(mrc.redis_cmd(['LRANGE ' task_key ':prior_to 0 -1']), newline);
@@ -141,8 +144,7 @@ try
             ['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ' status finished'], ...
             'EXEC'});
     end
-    disp(['    finished_on ' str_to_redis_str(datetime) ])
-    disp('')
+    disp([newline '   finished_on: ' str_to_redis_str(datetime) ])
 catch err
     json_err = jsonencode(err);
     json_err = join(split(json_err, ','), ',\n');
@@ -155,8 +157,7 @@ catch err
             ' err_msg ' str_to_redis_str(json_err) ' status failed'], ...
             'EXEC'});
     end
-    disp(['    failed_on ' str_to_redis_str(datetime) ])
-    disp('')
+    disp([newline '   failed_on: ' str_to_redis_str(datetime) ])
     disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])
 end
 
