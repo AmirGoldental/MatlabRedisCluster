@@ -100,7 +100,7 @@ refresh()
         command_list.String = {};
         
         cluster_status = mrc.get_cluster_status();
-        filter_buttons.pre_pending.String = [num2str(cluster_status.num_pre_pending) ' Pre Pending Tasks'];
+        filter_buttons.pre_pending.String = [num2str(cluster_status.num_pre_pending) ' Pre-pending Tasks'];
         filter_buttons.pending.String = [num2str(cluster_status.num_pending) ' Pending Tasks'];
         filter_buttons.ongoing.String = [num2str(cluster_status.num_ongoing) ' Ongoing Tasks'];
         filter_buttons.finished.String = [num2str(cluster_status.num_finished) ' Finished Tasks'];
