@@ -1,24 +1,29 @@
 function tasks = new_task(commands, varargin)
 commands = reshape(commands,1,[]);
-varargin = cellfun(@(x) char(x), varargin, 'UniformOutput', false);
+char_varargin = cellfun(@(x) char(x), varargin, 'UniformOutput', false);
 
 tasks = cell(0);
 if ~iscell(commands)
     commands = {commands};
 end
+
+if any(strcmpi('addpath', char_varargin))
+    path2add = char_varargin{find(strcmpi('addpath', char_varargin), 1) + 1};
+else
+    path2add = 'None';
+end
+
 for i = 1:length(commands)
     command = char(commands{i});
     task = struct();
     task.command = command;
     task.created_by = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
     task.created_on = datetime();
+    task.path2add = path2add;
     tasks{i} = task;
 end
 
-if any(strcmpi('addpath', varargin))
-    task.path2add = varargin{find(strcmpi('addpath', varargin), 1) + 1};
 else
-    task.path2add = 'None';
 end
 
 lua_add_task = ['"'...
