@@ -21,6 +21,18 @@
             ]
          },
          {
+            "name": "dependencies",
+            "kind": "namevalue",
+            "type": [
+               [
+                  "char"
+               ],
+               [
+                  "cell"
+               ]
+            ]
+         },
+         {
             "name": "wait",
             "kind": "flag",
             "type": [
