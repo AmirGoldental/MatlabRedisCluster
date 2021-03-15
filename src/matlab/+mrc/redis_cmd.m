@@ -20,6 +20,13 @@ else
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
 end
 
+if ~iscell(command)
+    command = {command};
+    unpack_single_output = true;
+else 
+    unpack_single_output = false;
+end
+
 if iscell(command)
     command = command(:);
     cmd = '';
@@ -51,11 +58,15 @@ if iscell(command)
     output(end) = [];
     output = strip(output);
     error_idxs = find(strncmp(output, 'ERR', 3));
+    error_idxs = sort(union(error_idxs, find(strncmp(output, 'NOSCRIPT', 8))));
     if ~isempty(error_idxs)
         error_strings = cellfun(@(cmd, err, idx) ...
-            ['error for command #' num2str(idx) ' (' cmd '): ' err(5:end)], ...
-            command(error_idxs), output(error_idxs), num2cell(error_idxs), 'UniformOutput', false); 
+            ['error for command #' num2str(idx) ' (' cmd '): ' err], ...
+            command(error_idxs(:)), output(error_idxs(:)), num2cell(error_idxs(:)), 'UniformOutput', false); 
         error(strjoin(error_strings, newline));
+    end
+    if unpack_single_output
+        output = output{1};
     end
 else
     redis_cmd = [redis_cmd_prefix char(command)];

@@ -14,6 +14,8 @@ for l = char(str)
         redis_str = [redis_str, l];
     end
 end
+redis_str(redis_str == char(13)) = ' ';
+redis_str(redis_str == newline) = ' ';
 redis_str = ['"' redis_str '"'];
 
 end
