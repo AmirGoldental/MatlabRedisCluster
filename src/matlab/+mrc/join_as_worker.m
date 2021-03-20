@@ -74,7 +74,7 @@ uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
 drawnow
 end
 
-function perform_task(worker_key, db_id, log_file)
+function perform_task(worker_key, db_id, log_path)
 if ~strcmp(db_id, get_db_id())
     return
 end
@@ -90,7 +90,7 @@ end
 task = get_redis_hash(task_key);
 
 % Start logging:
-diary(fullfile(log_file, strrep([task_key '_' worker_key '_' db_id '.txt'], ':', '-')));
+diary(fullfile(log_path, strrep([task_key '_' worker_key '_' db_id '.txt'], ':', '-')));
 
 disp(' --- ')
 disp(task)
