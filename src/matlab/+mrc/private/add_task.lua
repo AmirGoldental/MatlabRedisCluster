@@ -13,5 +13,7 @@ elseif redis.call('LLEN', task_key .. ':dependencies') == 0 then
     redis.call('LPUSH', 'pending_tasks', task_key); task_status = 'pending'; 
 else redis.call('RPUSH', 'pre_pending_tasks', task_key); task_status = 'pre_pending'; 
 end;
-redis.call('HMSET', task_key, 'key', task_key, 'id', tostring(task_id), 'command', KEYS[1], 'created_by', KEYS[2], 'created_on', KEYS[3], 'path2add', KEYS[4], 'status', task_status); 
+redis.call('HMSET', task_key, 'key', task_key, 'id', tostring(task_id),
+    'command', KEYS[1], 'created_by', KEYS[2], 'created_on', KEYS[3],
+    'path2add', KEYS[4], 'status', task_status, 'fail_policy', KEYS[5]); 
 return task_key

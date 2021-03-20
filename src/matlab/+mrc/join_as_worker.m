@@ -126,6 +126,19 @@ catch err
     json_err = join(split(json_err, ','), ',\n');
     
     if strcmp(db_id, get_db_id())
+        if strcmpi(task.fail_policy, 'continue')
+            dependent_tasks = split(mrc.redis_cmd(['LRANGE ' task_key ':prior_to 0 -1']), newline);
+            if numel(dependent_tasks) == 1
+                if isempty(dependent_tasks{1})
+                    dependent_tasks = [];
+                end
+            end
+            for idx = 1:numel(dependent_tasks)
+                dependent_task_key = dependent_tasks{idx};
+                mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_task') '2 ' dependent_task_key ' ' task_key]);
+            end
+        end
+        
         mrc.redis_cmd({'MULTI', ...
             ['LREM ongoing_tasks 0 ' task_key], ...
             ['LPUSH failed_tasks ' task_key ], ...

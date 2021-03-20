@@ -13,6 +13,12 @@ else
     path2add = 'None';
 end
 
+if any(strcmpi('fail_policy', char_varargin))
+    fail_policy = char_varargin{find(strcmpi('fail_policy', char_varargin), 1) + 1};
+else
+    fail_policy = 'halt';
+end
+
 for i = 1:length(commands)
     command = char(commands{i});
     task = struct();
@@ -20,6 +26,7 @@ for i = 1:length(commands)
     task.created_by = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
     task.created_on = datetime();
     task.path2add = path2add;
+    task.fail_policy = fail_policy;
     tasks{i} = task;
 end
 
@@ -34,11 +41,12 @@ else
     dependencies = '';
 end
 
-redis_add_task = @(task) ['EVALSHA ' script_SHA('add_task') '4' ...
+redis_add_task = @(task) ['EVALSHA ' script_SHA('add_task') '5' ...
     ' ' str_to_redis_str(task.command) ...
     ' ' str_to_redis_str(task.created_by) ...
     ' ' str_to_redis_str(task.created_on) ...
     ' ' str_to_redis_str(task.path2add) ...
+    ' ' str_to_redis_str(task.fail_policy) ...
     ' ' dependencies];
 cmds = cellfun(redis_add_task, tasks, 'UniformOutput', false);
 task_keys = mrc.redis_cmd(cmds);

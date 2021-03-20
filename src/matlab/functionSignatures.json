@@ -21,6 +21,13 @@
             ]
          },
          {
+            "name": "fail_policy",
+            "kind": "namevalue",
+            "type": [
+               "choices={'halt', 'continue'}"
+            ]
+         },
+         {
             "name": "dependencies",
             "kind": "namevalue",
             "type": [
