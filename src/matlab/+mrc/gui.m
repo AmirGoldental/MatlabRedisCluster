@@ -241,7 +241,7 @@ refresh()
                     'Position', [0.33 0.01 0.2 0.05], 'FontSize', 13, ...
                     'String', 'Load Log', 'Callback', @(~,~) set(edit_widget, 'String', textread(logfile, '%[^\n]')))                
             end            
-        end        
+        end
     end
 
     function listbox_callback()
@@ -330,10 +330,10 @@ refresh()
     end
 
     function retry_task(task, varargin)
-         mrc.new_task(task.command, 'path', task.path2add);
-         if any(strcmpi('refresh', varargin))
-             refresh();
-         end
+        mrc.retry_task(task.key);
+        if any(strcmpi('refresh', varargin))
+            refresh();
+        end
     end
     
     function retry_task_on_this_machine(task)
