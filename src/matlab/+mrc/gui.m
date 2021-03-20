@@ -291,6 +291,10 @@ refresh()
 
     function remove_selceted_tasks()
         switch gui_status.active_filter_button
+            case 'pre_pending'
+                for task_key = command_list.UserData.keys(command_list.Value)
+                    mrc.redis_cmd(['LREM pre_pending_tasks 0 "' char(task_key{1}) '"'])
+                end
             case 'pending'
                 for task_key = command_list.UserData.keys(command_list.Value)
                     mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key{1}) '"'])
