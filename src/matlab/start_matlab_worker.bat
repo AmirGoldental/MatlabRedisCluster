@@ -27,7 +27,7 @@ if "!res!" == "failed" (
     call :logger ERROR could not communicate with redis server failed on incr workers_count
 ) else (
     set worker_id=!res!
-    call :send_redis hmset worker:!worker_id! status initializing current_task None last_command None computer %hostname%
+    call :send_redis hmset worker:!worker_id! status initializing current_task None last_command None computer %hostname% key !worker_id!
     start "%random%_matlab_worker" "%matlab_path%" -sd "%cur_dir%" -r "mrc.join_as_worker('!worker_id!')"
 )
 timeout /t 30
