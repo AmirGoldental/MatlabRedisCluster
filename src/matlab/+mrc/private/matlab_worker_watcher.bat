@@ -11,7 +11,7 @@ SETLOCAL EnableDelayedExpansion
 set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
-set start_matlab_worker_path=%~dp0%start_matlab_worker.bat
+set start_matlab_worker_path=%~dp0%\..\..\start_matlab_worker.bat
 set DB_ID=INITIAL_DB_ID
 
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i

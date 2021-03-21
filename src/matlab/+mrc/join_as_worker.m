@@ -10,8 +10,9 @@ end
 
 worker.started_on = datetime();
 mrc_dir = fileparts(fileparts(mfilename('fullpath')));
+watcher_path = fullfile('+mrc', 'private', 'matlab_worker_watcher.bat');
 system(['start "worker_watcher" /D "' mrc_dir ...
-    '" matlab_worker_watcher.bat mrc_client.conf ' worker_key ' ' ...
+    '" ' watcher_path ' mrc_client.conf ' worker_key ' ' ...
     num2str(feature('getpid'))]);
 
 worker.status = 'active';
