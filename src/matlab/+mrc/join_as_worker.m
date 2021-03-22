@@ -91,7 +91,7 @@ end
 task = get_redis_hash(task_key);
 
 % Start logging:
-diary(fullfile(log_path, strrep([task_key '_' worker_key '_' db_id '.txt'], ':', '-')));
+diary(fullfile(log_path, strrep([db_id '_' task_key '_' worker_key '.txt'], ':', '-')));
 
 disp(' --- ')
 disp(task)
