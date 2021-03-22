@@ -212,7 +212,7 @@ refresh()
     end
 
     function show_key(key)
-        key_struct = get_redis_hash(key);        
+        key_struct = get_redis_hash(key);  
         strcells = strcat(fieldnames(key_struct), ' : "', cellstr(struct2cell(key_struct)), '"');
         for cell_idx = 1:numel(strcells)
             cell_content = strcells{cell_idx};
@@ -226,22 +226,30 @@ refresh()
             'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
             'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
             'FontName', 'Consolas', 'HorizontalAlignment', 'left');
-        drawnow
-        if any(strcmpi(gui_status.active_filter_button, {'failed', 'finished'}))
-            uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                'Position', [0.01 0.01 0.1 0.05], 'FontSize', 13, ...
-                'String', 'Retry', 'Callback', @(~,~) retry_task(key_struct, 'refresh'))
-            uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                'Position', [0.12 0.01 0.2 0.05], 'FontSize', 13, ...
-                'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
-            
-            logfile = fullfile(conf.log_path, strrep([get_db_id() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
-            if exist(logfile, 'file')
+        
+        if strncmp(key, 'task', 4) % task
+            if any(strcmpi(key_struct.status, {'failed', 'finished'}))
                 uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.33 0.01 0.2 0.05], 'FontSize', 13, ...
-                    'String', 'Load Log', 'Callback', @(~,~) set(edit_widget, 'String', textread(logfile, '%[^\n]')))                
-            end            
+                    'Position', [0.01 0.01 0.18 0.05], 'FontSize', 13, ...
+                    'String', 'Retry', 'Callback', @(~,~) retry_task(key_struct, 'refresh'))
+                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                    'Position', [0.21 0.01 0.18 0.05], 'FontSize', 13, ...
+                    'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
+                
+                logfile = fullfile(conf.log_path, strrep([get_db_id() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
+                if exist(logfile, 'file')
+                    uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                        'Position', [0.41 0.01 0.18 0.05], 'FontSize', 13, ...
+                        'String', 'Load Log', 'Callback', @(~,~) set(edit_widget, 'String', textread(logfile, '%[^\n]')))
+                end
+                if strcmpi(key_struct.status, 'failed')
+                    uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                        'Position', [0.61 0.01 0.18 0.05], 'FontSize', 13, ...
+                        'String', 'Mark as finishd', 'Callback', @(~,~) mrc.move_task_to_finished(key_struct.key))
+                end
+            end
         end
+        drawnow
     end
 
     function listbox_callback()

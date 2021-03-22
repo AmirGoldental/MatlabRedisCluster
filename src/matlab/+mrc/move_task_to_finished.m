@@ -1,4 +1,5 @@
 function move_task_to_finished(task_key)
+task_key = char(task_key);
 task = get_redis_hash(task_key);
 if strcmpi(task.status, 'finished')
     return
