@@ -343,8 +343,8 @@ refresh()
     function retry_task_on_this_machine(task)
         path2add = char(task.path2add);
         if ~strcmpi(path2add, 'None')
-            disp(['>> addpath(' path2add ')']);
-            evalin('base', ['addpath(' path2add ')'])
+            disp(['>> addpath(''' path2add ''')']);
+            evalin('base', ['addpath(''' path2add ''')'])
         end
         disp(['>> ' char(task.command)])
         evalin('base', task.command)
