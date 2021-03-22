@@ -74,9 +74,12 @@ uimenu(context_menus.ongoing, 'Text', 'Abort', 'MenuSelectedFcn', @(~,~) remove_
 context_menus.failed = uicontextmenu(fig);
 uimenu(context_menus.failed, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
 uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
+uimenu(context_menus.failed, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) Mark_as_finished_selceted_tasks);
+
 context_menus.finished = uicontextmenu(fig);
 uimenu(context_menus.finished, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
 uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
+
 context_menus.workers = uicontextmenu(fig);
 uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) kill_selceted_workers);
 uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) suspend_selceted_workers);
@@ -308,6 +311,14 @@ refresh()
         end   
         refresh;
     end
+
+    function Mark_as_finished_selceted_tasks()
+        for task_key = command_list.UserData.keys(command_list.Value)
+            mrc.move_task_to_finished(task_key{1})
+        end   
+        refresh;
+    end
+
 
     function remove_selceted_tasks()
         switch gui_status.active_filter_button
