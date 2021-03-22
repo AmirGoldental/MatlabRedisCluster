@@ -105,16 +105,7 @@ try
     disp(['>> ' char(task.command)]);
     eval(task.command)
     if strcmp(db_id, get_db_id())
-        dependent_tasks = split(mrc.redis_cmd(['LRANGE ' task_key ':prior_to 0 -1']), newline);
-        if numel(dependent_tasks) == 1
-            if isempty(dependent_tasks{1})
-                dependent_tasks = [];
-            end
-        end
-        for idx = 1:numel(dependent_tasks)
-            dependent_task_key = dependent_tasks{idx};
-            mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_task') '2 ' dependent_task_key ' ' task_key]);
-        end
+        mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_tasks') '1 ' task_key]);
         mrc.redis_cmd({'MULTI', ...
             ['LREM ongoing_tasks 0 ' task_key], ...
             ['LPUSH finished_tasks ' task_key ], ...
@@ -128,16 +119,7 @@ catch err
     
     if strcmp(db_id, get_db_id())
         if strcmpi(task.fail_policy, 'continue')
-            dependent_tasks = split(mrc.redis_cmd(['LRANGE ' task_key ':prior_to 0 -1']), newline);
-            if numel(dependent_tasks) == 1
-                if isempty(dependent_tasks{1})
-                    dependent_tasks = [];
-                end
-            end
-            for idx = 1:numel(dependent_tasks)
-                dependent_task_key = dependent_tasks{idx};
-                mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_task') '2 ' dependent_task_key ' ' task_key]);
-            end
+            mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_tasks') '1 ' task_key]);
         end
         
         mrc.redis_cmd({'MULTI', ...
