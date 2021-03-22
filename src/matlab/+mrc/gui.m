@@ -17,13 +17,47 @@ fig.Position = [0.02 0.04 0.95 0.85];
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
 uimenu(actions_menu, 'Text', 'Abort all tasks', ...
-    'MenuSelectedFcn', @(~,~) abort_all_tasks());
+    'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Clear finished', ...
-    'MenuSelectedFcn', @(~,~) clear_all_finished());
+    'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Clear failed', ...
-    'MenuSelectedFcn', @(~,~) clear_all_failed());
+    'MenuSelectedFcn', @action);
+uimenu(actions_menu, 'Text', 'Suspend all workers', ...
+    'MenuSelectedFcn', @action);
+uimenu(actions_menu, 'Text', 'Wakeup all workers', ...
+    'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     'MenuSelectedFcn', @(~,~) restart_cluster, 'ForegroundColor', [0.7,0,0]);
+    function action(action_menu, ~)
+        switch action_menu.Text
+            case 'Abort all tasks'
+                mrc.redis_cmd('DEL pending_tasks');
+                ongoing_tasks = split(mrc.redis_cmd('LRANGE ongoing_tasks 0 -1'), newline);
+                if isempty(ongoing_tasks{1})
+                    return
+                end
+                mrc.redis_cmd(cellfun(@(task) ['HSET ' char(task.worker) ' status restart'],...
+                    get_redis_hash(ongoing_tasks), 'UniformOutput', false));
+            case 'Clear finished'
+                mrc.redis_cmd('DEL finished_tasks')
+            case 'Clear failed'
+                mrc.redis_cmd('DEL failed_tasks')
+            case 'Suspend all workers'
+                mrc.suspend_workers()
+            case 'Wakeup all workers'
+                mrc.wakeup_workers()
+            case 'Restart Cluster'
+                answer = questdlg('Are you sure you want to restart the cluster?', ...
+                    'Restart cluster', ...
+                    'Yes','No','No');
+                % Handle response
+                if strcmpi(answer, 'yes')
+                    mrc.flush_db;
+                end
+        end
+        pause(1)
+        refresh();
+    end
 gui_status.active_filter_button = 'pending';
 button_length = 0.13;
 button_height = 0.04;
@@ -183,26 +217,6 @@ refresh()
         
     end
 
-    function abort_all_tasks()        
-        mrc.redis_cmd('DEL pending_tasks');        
-        ongoing_tasks = split(mrc.redis_cmd('LRANGE ongoing_tasks 0 -1'), newline);
-        if isempty(ongoing_tasks{1})
-            return
-        end
-        mrc.redis_cmd(cellfun(@(task) ['HSET ' char(task.worker) ' status restart'],...
-            get_redis_hash(ongoing_tasks), 'UniformOutput', false));
-    end
-
-    function clear_all_finished()
-        mrc.redis_cmd('DEL finished_tasks')
-        refresh()
-    end
-
-    function clear_all_failed()
-        mrc.redis_cmd('DEL failed_tasks')
-        refresh()
-    end
-
     function filter_button_callback(category)
         if ~strcmpi(gui_status.active_filter_button, category)
             gui_status.active_filter_button = category;
@@ -266,17 +280,6 @@ refresh()
         end
     end
 
-    function restart_cluster()
-        answer = questdlg('Are you sure you want to restart the cluster?', ...
-            'Restart cluster', ...
-            'Yes','No','No');
-        % Handle response
-        if strcmpi(answer, 'yes')
-            mrc.flush_db;
-            refresh;
-        end
-    end
-
     function kill_selceted_workers()
         for worker_key = command_list.UserData.keys(command_list.Value)'
             if ~strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'dead')
@@ -287,20 +290,20 @@ refresh()
     end
 
     function suspend_selceted_workers()
-        for worker_key = command_list.UserData.keys(command_list.Value)'
-            if ~strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'dead')
-                mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status suspended'])
-            end
+        worker_keys = command_list.UserData.keys(command_list.Value)';
+        if isempty(worker_keys)
+            return
         end
+        mrc.suspend_workers(worker_keys);
         refresh;
     end
     
     function wakeup_selceted_workers()
-        for worker_key = command_list.UserData.keys(command_list.Value)'
-            if strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'suspended')
-                mrc.redis_cmd(['LPUSH ' char(worker_key{1}) ':wakeup 1'])
-            end
+        worker_keys = command_list.UserData.keys(command_list.Value)';
+        if isempty(worker_keys)
+            return
         end
+        mrc.wakeup_workers(worker_keys)
         pause(1)
         refresh;
     end
