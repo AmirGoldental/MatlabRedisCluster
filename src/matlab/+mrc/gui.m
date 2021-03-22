@@ -63,6 +63,7 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
 
 context_menus.pre_pending = uicontextmenu(fig);
 uimenu(context_menus.pre_pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+uimenu(context_menus.pre_pending, 'Text', 'Force Start', 'MenuSelectedFcn', @(~,~) force_start_pre_pending_selceted_tasks);
 
 context_menus.pending = uicontextmenu(fig);
 uimenu(context_menus.pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
@@ -247,6 +248,10 @@ refresh()
                         'Position', [0.61 0.01 0.18 0.05], 'FontSize', 13, ...
                         'String', 'Mark as finishd', 'Callback', @(~,~) mrc.move_task_to_finished(key_struct.key))
                 end
+            elseif strcmpi(key_struct.status, 'pre_pending')
+                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
+                    'Position', [0.01 0.01 0.18 0.05], 'FontSize', 13, ...
+                    'String', 'Force Start', 'Callback', @(~,~) force_start_pre_pending_task(key_struct.key))
             end
         end
         drawnow
@@ -294,6 +299,13 @@ refresh()
             end
         end
         pause(1)
+        refresh;
+    end
+
+    function force_start_pre_pending_selceted_tasks()
+        for task_key = command_list.UserData.keys(command_list.Value)
+            force_start_pre_pending_task(task_key{1})
+        end   
         refresh;
     end
 
@@ -358,5 +370,12 @@ refresh()
         evalin('base', task.command)
     end
 
+    function force_start_pre_pending_task(task_key)
+        task_key = char(task_key);
+        if mrc.redis_cmd(['LREM pre_pending_tasks 0 ' task_key]) == '1'
+            mrc.redis_cmd(['LPUSH pending_tasks ' task_key]) 
+            mrc.redis_cmd(['HSET ' task_key  ' status pending']) 
+        end
+    end
 
 end
