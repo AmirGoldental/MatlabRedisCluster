@@ -10,10 +10,8 @@ end
 
 if any(strcmpi(varargin, 'download'))
     tasks2download = varargin{find(strcmpi(varargin, 'download'), 1) + 1};
-    keys = cellfun(@(task_id) ['task:' num2str(task_id)], num2cell(tasks2download(:)), 'UniformOutput', false);
-    if numel(tasks2download) == 1
-        tasks{tasks2download} = get_redis_hash(keys);
-    elseif numel(tasks2download) >  1
+    if ~isempty(tasks2download)
+        keys = cellfun(@(task_id) ['task:' num2str(task_id)], num2cell(tasks2download(:)), 'UniformOutput', false);
         tasks(tasks2download(:)) = get_redis_hash(keys);
     end
 end
