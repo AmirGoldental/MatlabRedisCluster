@@ -24,7 +24,7 @@ uimenu(actions_menu, 'Text', 'Clear failed', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Suspend all workers', ...
     'MenuSelectedFcn', @action);
-uimenu(actions_menu, 'Text', 'Wakeup all workers', ...
+uimenu(actions_menu, 'Text', 'Activate all workers', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     'MenuSelectedFcn', @action, 'ForegroundColor', [0.7,0,0]);
@@ -43,9 +43,9 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
             case 'Clear failed'
                 mrc.redis_cmd('DEL failed_tasks')
             case 'Suspend all workers'
-                mrc.suspend_workers()
-            case 'Wakeup all workers'
-                mrc.wakeup_workers()
+                mrc.change_key_status('all_workers', 'suspended')
+            case 'Activate all workers'
+                mrc.change_key_status('all_workers', 'active')
             case 'Restart Cluster'
                 answer = questdlg('Are you sure you want to restart the cluster?', ...
                     'Restart cluster', ...
@@ -97,27 +97,28 @@ command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
 
 context_menus.pre_pending = uicontextmenu(fig);
 uimenu(context_menus.pre_pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.pre_pending, 'Text', 'Force Start', 'MenuSelectedFcn', @(~,~) force_start_pre_pending_selceted_tasks);
+uimenu(context_menus.pre_pending, 'Text', 'Force Start', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
 
 context_menus.pending = uicontextmenu(fig);
 uimenu(context_menus.pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
+uimenu(context_menus.pending, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) mark_selceted_tasks_as_finished);
 
 context_menus.ongoing = uicontextmenu(fig);
 uimenu(context_menus.ongoing, 'Text', 'Abort', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
 
 context_menus.failed = uicontextmenu(fig);
 uimenu(context_menus.failed, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
-uimenu(context_menus.failed, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) Mark_as_finished_selceted_tasks);
+uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
+uimenu(context_menus.failed, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) mark_selceted_tasks_as_finished);
 
 context_menus.finished = uicontextmenu(fig);
 uimenu(context_menus.finished, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) retry_selceted_tasks);
+uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
 
 context_menus.workers = uicontextmenu(fig);
 uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) kill_selceted_workers);
 uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) suspend_selceted_workers);
-uimenu(context_menus.workers, 'Text', 'Wake Up', 'MenuSelectedFcn', @(~,~) wakeup_selceted_workers);
+uimenu(context_menus.workers, 'Text', 'Activate', 'MenuSelectedFcn', @(~,~) activate_selceted_workers);
 
 load_more_button = uicontrol(fig, 'Style', 'pushbutton', ...
     'String', 'Load More', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
@@ -158,7 +159,7 @@ refresh()
             workers = workers(cellfun(@(worker) ~any(strcmpi(worker.status, {'kill','dead'})), workers));
             command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
                 worker.computer, "): ", worker.status), workers);
-            command_list.UserData.keys = cellfun(@(worker) worker.key, workers);
+            command_list.UserData.keys = cellfun(@(worker) worker.key, workers, 'UniformOutput', false);
             return
         end
         
@@ -260,12 +261,12 @@ refresh()
                 if strcmpi(key_struct.status, 'failed')
                     uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
                         'Position', [0.61 0.01 0.18 0.05], 'FontSize', 13, ...
-                        'String', 'Mark as finishd', 'Callback', @(~,~) mrc.move_task_to_finished(key_struct.key))
+                        'String', 'Mark as finishd', 'Callback', @(~,~) mrc.change_key_status(key_struct.key, 'finished'))
                 end
             elseif strcmpi(key_struct.status, 'pre_pending')
                 uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
                     'Position', [0.01 0.01 0.18 0.05], 'FontSize', 13, ...
-                    'String', 'Force Start', 'Callback', @(~,~) force_start_pre_pending_task(key_struct.key))
+                    'String', 'Force Start', 'Callback', @(~,~) mrc.change_key_status(key_struct.key, 'pending'))
             end
         end
         drawnow
@@ -287,35 +288,23 @@ refresh()
     end
 
     function suspend_selceted_workers()
-        worker_keys = command_list.UserData.keys(command_list.Value)';
-        if isempty(worker_keys)
-            return
-        end
-        mrc.suspend_workers(worker_keys);
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'suspended')
         refresh;
     end
     
-    function wakeup_selceted_workers()
-        worker_keys = command_list.UserData.keys(command_list.Value)';
-        if isempty(worker_keys)
-            return
-        end
-        mrc.wakeup_workers(worker_keys)
+    function activate_selceted_workers()
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'active')
         pause(1)
         refresh;
     end
 
-    function force_start_pre_pending_selceted_tasks()
-        for task_key = command_list.UserData.keys(command_list.Value)
-            force_start_pre_pending_task(task_key{1})
-        end   
+    function move_selected_tasks_to_pending()
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'pending');
         refresh;
     end
 
-    function Mark_as_finished_selceted_tasks()
-        for task_key = command_list.UserData.keys(command_list.Value)
-            mrc.move_task_to_finished(task_key{1})
-        end   
+    function mark_selceted_tasks_as_finished()
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'finished')
         refresh;
     end
 
@@ -355,17 +344,9 @@ refresh()
                 remove_selceted_tasks()
         end
     end
-    
-    function retry_selceted_tasks()
-        task_keys = command_list.UserData.keys(command_list.Value);
-        task_keys = cellfun(@(task_key) char(task_key), task_keys, 'UniformOutput', false);
-        task_ids = cellfun(@(task_key) str2double(task_key(6:end)), task_keys);
-        cellfun(@retry_task, mrc.get_tasks('download', task_ids, 'get_by_id', task_ids));
-        refresh()
-    end
 
     function retry_task(task, varargin)
-        mrc.retry_task(task.key);
+        mrc.change_key_status(task.key, 'pending')
         if any(strcmpi('refresh', varargin))
             refresh();
         end
@@ -379,14 +360,6 @@ refresh()
         end
         disp(['>> ' char(task.command)])
         evalin('base', task.command)
-    end
-
-    function force_start_pre_pending_task(task_key)
-        task_key = char(task_key);
-        if mrc.redis_cmd(['LREM pre_pending_tasks 0 ' task_key]) == '1'
-            mrc.redis_cmd(['LPUSH pending_tasks ' task_key]) 
-            mrc.redis_cmd(['HSET ' task_key  ' status pending']) 
-        end
     end
 
 end

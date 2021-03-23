@@ -43,11 +43,12 @@ worker_status = get_worker_status();
 while any(strcmp(worker_status, {'active', 'suspended'}))
     if strcmp(worker_status, 'suspended')
         disp([char(datetime) ': Worker was suspended'])
-        % to wakeup worker, 'LPUSH worker:n:wakeup 1'
-        mrc.redis_cmd({['BLPOP ' worker_key ':wakeup 0'],...
-            ['DEL ' worker_key ':wakeup'], ...
-            ['HSET ' worker_key ' status active']});
-        disp([char(datetime) ': Worker wokeup'])
+        % to activate worker, 'LPUSH worker:n:activate 1'
+        mrc.redis_cmd({['BLPOP ' worker_key ':activate 0'],...
+            ['DEL ' worker_key ':activate'], ...
+            ['HSET ' worker_key ' status active'], ...
+            ['SMOVE suspended_workers active_workers ' worker_key]});
+        disp([char(datetime) ': Worker activated'])
     end
     perform_task(worker_key, db_id, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
