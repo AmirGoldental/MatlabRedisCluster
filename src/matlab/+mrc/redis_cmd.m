@@ -56,6 +56,9 @@ for command_idx = 1:numel(command)
     if (length(cmd) + length(command{min(command_idx,end)})) > 7900 || command_idx == numel(command)
         [this_exit_flag, this_output] = system(['(' cmd ') | ' redis_cmd_prefix]);
         
+        if this_exit_flag
+           warning('redis command exited with an error') 
+        end
         if strcmp(this_output(1:min(26,end)), 'Could not connect to Redis')
             error('Could not connect to Redis')
         end
