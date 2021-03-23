@@ -11,6 +11,7 @@ classdef test < matlab.unittest.TestCase
     methods(Test)
         function test_start_worker(testCase)    
             worker_id = testCase.start_worker;
+            mrc.test.kill_all_workers;
         end
         
         function test_get_db_timetag_and_flush_db(testCase)    
@@ -61,6 +62,31 @@ classdef test < matlab.unittest.TestCase
             assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
             output = get_redis_hash('bad'); 
             assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
+        end
+
+        function test_set_redis_hash(testCase)  
+            mrc.flush_db;
+            simple_struct = struct('a', 'hello\there', 'b', 'b', 'dont', 'mess', 'with_the', 'zohan');
+            another_struct = struct('b', '1', 'a', '2');
+            set_redis_hash('empty', struct());   
+            assert_equal_hash(struct, 'empty');
+            set_redis_hash('simple', simple_struct);       
+            assert_equal_hash(simple_struct, 'simple');
+            set_redis_hash('another', another_struct);            
+            assert_equal_hash(another_struct, 'another');
+            mrc.flush_db;
+            set_redis_hash({'simple', 'another'}, {simple_struct, another_struct});       
+            assert_equal_hash(simple_struct, 'simple');
+            assert_equal_hash(another_struct, 'another');
+            set_redis_hash({'empty', 'another'}, {struct(), another_struct});
+            assert_equal_hash(another_struct, 'another');
+            function assert_equal_hash(s, name)
+                output = get_redis_hash(name);
+                output_keys = fieldnames(output);
+                output_vals = cellfun(@(x) {char(x)}, struct2cell(output));
+                assert(all(strcmp(output_keys, fieldnames(s))), ['set_redis_hash bad values on ' name])
+                assert(all(strcmp(output_vals, struct2cell(s))), ['set_redis_hash bad keys on ' name])
+            end
         end
     end
     
