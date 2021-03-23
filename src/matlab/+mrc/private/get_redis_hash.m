@@ -1,6 +1,6 @@
 function redis_structs = get_redis_hash(redis_keys)
 if isempty(redis_keys)
-    redis_structs = struct();
+    redis_structs = [];
     return
 end
 if ~iscell(redis_keys)

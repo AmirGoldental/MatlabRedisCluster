@@ -9,12 +9,58 @@ classdef test < matlab.unittest.TestCase
     end
         
     methods(Test)
-        function worker_simple_test(testCase)    
+        function test_start_worker(testCase)    
             worker_id = testCase.start_worker;
         end
         
-        function get_tasks_test(testCase)
-            % test get_db_id,             
+        function test_get_db_timetag_and_flush_db(testCase)    
+			mrc.redis_cmd('set db_timetag hello');
+			tag = get_db_timetag;
+			assert(strcmpi(tag, 'hello'), 'get_db_timetag did not returned current timetag');
+			mrc.redis_cmd('set tmp 0');
+			mrc.flush_db;
+			new_tag = get_db_timetag;			
+			assert(~strcmpi(new_tag, tag), 'get_db_timetag was not changed after db reset');
+			assert(~strcmpi(mrc.redis_cmd('get tmp'), '0'), 'data stays after db flush');
+        end
+        
+        function test_get_redis_hash(testCase)  
+            mrc.redis_cmd('hmset test this that they are it 0');
+            mrc.redis_cmd('hmset another they are here 0');
+            output = get_redis_hash({});
+            assert(isempty(output), 'get_redis_hash empty input did not result in empty output')
+            output = get_redis_hash('test');
+            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
+                    'get_redis_hash wrong result');
+
+            output = get_redis_hash({'test'});
+            assert(length(output) == 1, 'get_redis_hash wrong result length');
+            output = output{1};
+            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
+                    'get_redis_hash wrong result');
+
+            output_both = get_redis_hash({'test', 'another'});
+            output = output_both{1};
+            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
+                    'get_redis_hash wrong result');
+            output = output_both{2};
+            assert(strcmpi(output.they, 'are') && strcmpi(output.here, '0'), 'get_redis_hash wrong result');
+            
+            output_both = get_redis_hash({'bad', 'test'});
+            output = output_both{2};
+            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
+                    'get_redis_hash wrong result');
+                
+            output_both = get_redis_hash({'test', 'bad'});
+            output = output_both{1};
+            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
+                    'get_redis_hash wrong result');
+                
+            output = get_redis_hash({'bad'});
+            output = output{1};
+            assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
+            output = get_redis_hash('bad'); 
+            assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
         end
     end
     
