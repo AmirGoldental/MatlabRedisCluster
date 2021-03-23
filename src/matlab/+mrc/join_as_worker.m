@@ -29,7 +29,7 @@ restoredefaultpath
 fclose all;
 close all;
 
-conf = mrc.read_conf_file;
+conf = read_conf_file;
 if ~isfolder(conf.log_path)
     mkdir(conf.log_path);
 end

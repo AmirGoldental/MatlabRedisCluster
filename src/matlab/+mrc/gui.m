@@ -8,7 +8,7 @@ colors.red = '#cf4229';
 colors.strong = '#bbbbbb';
 colors.weak = '#dddddd';
 
-conf = mrc.read_conf_file;
+conf = read_conf_file;
 
 fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
     'NumberTitle', 'off', 'Units', 'normalized', ...
