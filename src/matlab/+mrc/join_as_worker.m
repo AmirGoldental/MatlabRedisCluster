@@ -1,5 +1,5 @@
 function join_as_worker(worker_id)
-db_id = get_db_id();
+db_timetag = get_db_timetag();
 worker = struct();
 
 if exist('worker_id', 'var')
@@ -50,7 +50,7 @@ while any(strcmp(worker_status, {'active', 'suspended'}))
             ['SMOVE suspended_workers active_workers ' worker_key]});
         disp([char(datetime) ': Worker activated'])
     end
-    perform_task(worker_key, db_id, conf.log_path)    
+    perform_task(worker_key, db_timetag, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
         worker_fig = worker_figure(worker_key, worker_fig);
     end
@@ -76,8 +76,8 @@ uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
 drawnow
 end
 
-function perform_task(worker_key, db_id, log_path)
-if ~strcmp(db_id, get_db_id())
+function perform_task(worker_key, db_timetag, log_path)
+if ~strcmp(db_timetag, get_db_timetag())
     return
 end
 
@@ -92,7 +92,7 @@ end
 task = get_redis_hash(task_key);
 
 % Start logging:
-diary(fullfile(log_path, strrep([db_id '_' task_key '_' worker_key '.txt'], ':', '-')));
+diary(fullfile(log_path, strrep(['DB_' db_timetag '_' task_key '_' worker_key '.txt'], ':', '-')));
 
 disp(' --- ')
 disp(task)
@@ -105,7 +105,7 @@ try
     end
     disp(['>> ' char(task.command)]);
     eval(task.command)
-    if strcmp(db_id, get_db_id())
+    if strcmp(db_timetag, get_db_timetag())
         mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_tasks') '1 ' task_key]);
         mrc.redis_cmd({'MULTI', ...
             ['LREM ongoing_tasks 0 ' task_key], ...
@@ -118,7 +118,7 @@ catch err
     json_err = jsonencode(err);
     json_err = join(split(json_err, ','), ',\n');
     
-    if strcmp(db_id, get_db_id())
+    if strcmp(db_timetag, get_db_timetag())
         if strcmpi(task.fail_policy, 'continue')
             mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_tasks') '1 ' task_key]);
         end
@@ -135,7 +135,7 @@ catch err
 end
 
 
-if strcmp(db_id, get_db_id())
+if strcmp(db_timetag, get_db_timetag())
     mrc.redis_cmd(['HSET ' worker_key ' current_task None']);
 end
 

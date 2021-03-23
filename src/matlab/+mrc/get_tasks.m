@@ -1,10 +1,10 @@
 function tasks_cells = get_tasks(varargin)
 persistent tasks
-persistent db_id
+persistent db_timetag
 
 % db sync
-if ~strcmp(db_id, get_db_id())
-    db_id = get_db_id();
+if ~strcmp(db_timetag, get_db_timetag())
+    db_timetag = get_db_timetag();
     tasks = cell(0);
 end
 

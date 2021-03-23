@@ -1,10 +1,10 @@
 function script_SHA = script_SHA(script_name)
 persistent SHA_script_store
-persistent db_id
+persistent db_timetag
 
 % db sync
-if ~strcmp(db_id, get_db_id())
-    db_id = get_db_id();
+if ~strcmp(db_timetag, get_db_timetag())
+    db_timetag = get_db_timetag();
     SHA_script_store = [];
 end
 

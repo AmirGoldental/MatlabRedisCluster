@@ -12,7 +12,7 @@ set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
 set start_matlab_worker_path=%~dp0%\..\..\start_matlab_worker.bat
-set DB_ID=INITIAL_DB_ID
+set db_timetag=INITIAL_db_timetag
 
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 
@@ -81,17 +81,17 @@ echo [%1] %date%T%time% %ALL_BUT_FIRST%
 exit /b
 
 :redis_check_id
-call :send_redis get db_id
+call :send_redis get db_timetag
 if "!res!"=="failed" (
     call :logger WARNING db-id was not found or redis timeout, wait and retry
     @timeout %wrapper_loop_wait_seconds% >nul
     goto redis_check_id
 ) else (
-    if "!DB_ID!"=="INITIAL_DB_ID" (
-        set DB_ID=!res!
+    if "!db_timetag!"=="INITIAL_db_timetag" (
+        set db_timetag=!res!
     )
-    if not "!DB_ID!"=="!res!" (
-        call :logger WARNING expect db-id !DB_ID! got !res! restart worker
+    if not "!db_timetag!"=="!res!" (
+        call :logger WARNING expect db-id !db_timetag! got !res! restart worker
         taskkill /PID !matlab_pid!
         call :logger INFO worker restart
         call %start_matlab_worker_path%
