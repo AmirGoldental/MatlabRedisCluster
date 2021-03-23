@@ -7,6 +7,7 @@ persistent db_timetag
 % db sync
 if ~strcmp(db_timetag, get_db_timetag())
     db_timetag = get_db_timetag();
+    tasks = cell(0);
 end
 if numel(tasks) < max(task_ids)
     tasks{max(task_ids)} = {};
