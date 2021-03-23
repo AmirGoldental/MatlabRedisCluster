@@ -5,10 +5,9 @@ default_timeout = 5;
 if isempty(last_redis_cmd)
     last_redis_cmd = 0;
 end
-if ~any(strcmpi('timeout', varargin)) && (last_redis_cmd - now) > min_interval_to_use_timeout * 60*60*24
-   varargin = [varargin, {'timeout', default_timeout}];
+if ~any(strcmpi('timeout', varargin)) && (last_redis_cmd - now) > min_interval_to_use_timeout / (60*60*24)
+   varargin = [varargin  {'timeout', default_timeout}];
 end
-last_redis_cmd = now;
 
 strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
 varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
@@ -18,7 +17,7 @@ if any(strcmpi('cmd_prefix', varargin))
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
-    killtimeout_path = fullfile(fileparts(mrc_path), 'utils', 'killtimeout.bat');
+    killtimeout_path = fullfile(fileparts(mrc_path), 'utils', 'unix_timeout.bat');
     conf = mrc.read_conf_file;
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
@@ -71,6 +70,7 @@ for command_idx = 1:numel(command)
         cmd = '';
     end
 end
+last_redis_cmd = now;
 output = split(output, '-REDIS-CMD-BREAK-');
 output(end) = [];
 output = strip(output);

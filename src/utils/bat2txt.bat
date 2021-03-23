@@ -1,2 +1,1 @@
 for /R %x in (*.bat) do ren "%x" *.txt
-for /R %x in (*.txt) do ren "%x" *.bat
