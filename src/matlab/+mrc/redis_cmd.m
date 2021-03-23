@@ -1,4 +1,15 @@
 function [output, redis_cmd_prefix] = redis_cmd(command, varargin)
+persistent last_redis_cmd
+min_interval_to_use_timeout = 10*60; % seconds
+default_timeout = 5;
+if isempty(last_redis_cmd)
+    last_redis_cmd = 0;
+end
+if ~any(strcmpi('timeout', varargin)) && (last_redis_cmd - now) > min_interval_to_use_timeout * 60*60*24
+   varargin = [varargin, {'timeout', default_timeout}];
+end
+last_redis_cmd = now;
+
 strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
 varargin(strings_in_varargin) = cellfun(@(cell) char(cell), varargin(strings_in_varargin), 'UniformOutput', false);
 
@@ -7,6 +18,7 @@ if any(strcmpi('cmd_prefix', varargin))
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
+    killtimeout_path = fullfile(fileparts(mrc_path), 'utils', 'killtimeout.bat');
     conf = mrc.read_conf_file;
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
@@ -16,6 +28,11 @@ else
     redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
     redis_cmd_prefix = ['"' redis_cli_path '" -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
+    
+    if any(strcmpi('timeout', varargin))
+        timeout = varargin{find(strcmpi('timeout', varargin), 1) + 1};
+        redis_cmd_prefix = ['"' killtimeout_path '" ' num2str(timeout) ' ' redis_cmd_prefix];
+    end
 end
 
 if ~iscell(command)
