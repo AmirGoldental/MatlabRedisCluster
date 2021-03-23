@@ -8,6 +8,16 @@ classdef test < matlab.unittest.TestCase
         redis_server_dir
     end
         
+    methods
+        function obj = test(obj)
+            persistent runing
+            if isempty(runing)
+                runing = true;
+                runtests('mrc.test')
+            end
+            runing = [];
+        end
+    end
     methods(Test)
         function test_start_worker(testCase)    
             worker_id = testCase.start_worker;
