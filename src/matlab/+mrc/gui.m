@@ -157,6 +157,16 @@ refresh()
             
             workers = get_redis_hash(keys);                
             workers = workers(cellfun(@(worker) ~any(strcmpi(worker.status, {'kill','dead'})), workers));
+            for cell_idx = 1:numel(workers)
+                if strcmpi(workers{cell_idx}.status, 'active')
+                    if ~strcmpi(workers{cell_idx}.current_task, 'None')
+                        workers{cell_idx}.status = 'working';
+                    end
+                    if (now - datenum(workers{cell_idx}.last_ping))*24*60 > 5   
+                        workers{cell_idx}.status = [workers{cell_idx}.status ', not responding for ' num2str(round((now - datenum(workers{cell_idx}.last_ping))*24*60)) ' minutes'];
+                    end
+                end
+            end
             command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
                 worker.computer, "): ", worker.status), workers);
             command_list.UserData.keys = cellfun(@(worker) worker.key, workers, 'UniformOutput', false);

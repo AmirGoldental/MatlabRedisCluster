@@ -1,8 +1,9 @@
+local worker_key = KEYS[1];
+local time_str = KEYS[2];
+redis.call('HSET', worker_key, 'last_ping', time_str);
 if redis.call('LLEN', 'pending_tasks') == 0 then 
     return ''
 end;
-local worker_key = KEYS[1];
-local time_str = KEYS[2];
 local task_key = redis.call('LPOP', 'pending_tasks');
 local task_cmd = redis.call('HGET', task_key, 'command');
 redis.call('RPUSH', 'ongoing_tasks', task_key);
