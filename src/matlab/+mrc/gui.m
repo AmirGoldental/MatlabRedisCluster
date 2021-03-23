@@ -182,21 +182,14 @@ refresh()
         end
         
         % not downloaded yet
-        tasks2download = setdiff(task_ids, find(~cellfun(@isempty, mrc.get_tasks())), 'stable');
+        tasks2download = task_ids(cellfun(@isempty, ...
+            mrc.get_tasks(task_ids, 'validate_status', category, 'cache_only')));
+        % download
         tasks2download = tasks2download(1:min(items_per_load, end));
-        tasks = mrc.get_tasks('download', tasks2download);
-        
-        % fix inconsistent status
-        tasks2update = tasks(task_ids(task_ids<=numel(tasks)));
-        tasks2update = tasks2update(~cellfun(@isempty,tasks2update));
-        tasks2update = tasks2update(cellfun(@(task) ~strcmpi(task.status, category), tasks2update));
-        tasks2update = cellfun(@(task) str2double(task.id), tasks2update);
-        tasks = mrc.get_tasks('download', tasks2update);
-        
-        % remove not downloaded yet or other status
-        tasks = tasks(task_ids(task_ids<=numel(tasks)));
+        mrc.get_tasks(tasks2download, 'network_only');
+        % get cached after validation
+        tasks = mrc.get_tasks(task_ids, 'validate_status', category , 'cache_only');
         tasks = tasks(~cellfun(@isempty, tasks));
-        tasks = tasks(cellfun(@(task) strcmpi(task.status, category), tasks));
         
         switch category
             case 'pre_pending'

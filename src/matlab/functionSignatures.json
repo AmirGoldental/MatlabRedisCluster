@@ -64,14 +64,6 @@
             ]
          },
          {
-            "name": "cache_strategy",
-            "kind": "flag",
-            "type": [
-               "char",
-               "choices={'cache_first'}"
-            ]
-         },
-         {
             "name": "cmd_prefix",
             "kind": "namevalue",
             "type": [
@@ -83,17 +75,24 @@
    "mrc.get_tasks": {
       "inputs": [
          {
-            "name": "download",
-            "kind": "namevalue",
+            "name": "task_ids",
+            "kind": "required",
             "type": [
                "vector"
             ]
          },
          {
-            "name": "get_by_id",
+            "name": "validate_status",
             "kind": "namevalue",
             "type": [
-               "vector"
+               "choices={'pre_pending','pending','ongoing','finished','failed'}"
+            ]
+         },
+         {
+            "name": "caching_strategy",
+            "kind": "flag",
+            "type": [
+               "choices={'network_only','cache_first','cache_only'}"
             ]
          }
       ]
