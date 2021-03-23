@@ -18,7 +18,7 @@ if any(strcmpi('cmd_prefix', varargin))
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
     killtimeout_path = fullfile(fileparts(mrc_path), 'utils', 'unix_timeout.bat');
-    conf = mrc.read_conf_file;
+    conf = read_conf_file;
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
         redis_cli_path = dir(fullfile(mrc_path, conf.redis_cli_path));
