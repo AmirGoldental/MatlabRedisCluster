@@ -153,11 +153,8 @@ refresh()
                 command_list.UserData.keys = [];  
                 return              
             end
-            if numel(keys) == 1
-                workers = {get_redis_hash(keys)};
-            else
-                workers = get_redis_hash(keys);
-            end
+            
+            workers = get_redis_hash(keys);                
             workers = workers(cellfun(@(worker) ~any(strcmpi(worker.status, {'kill','dead'})), workers));
             command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
                 worker.computer, "): ", worker.status), workers);
