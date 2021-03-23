@@ -1,4 +1,4 @@
-classdef MRCTest < matlab.unittest.TestCase
+classdef test < matlab.unittest.TestCase
     % runtests('MRCTest'); % in src/matlab
     % check in advance that no other redis / cluster is running
     % with the same configurations
@@ -7,10 +7,20 @@ classdef MRCTest < matlab.unittest.TestCase
         mrc_dir
         redis_server_dir
     end
+        
+    methods(Test)
+        function worker_simple_test(testCase)    
+            worker_id = testCase.start_worker;
+        end
+        
+        function get_tasks_test(testCase)
+            % test get_db_id,             
+        end
+    end
     
     methods(TestClassSetup)
         function start_redis(testCase)
-            testCase.main_dir = fileparts(fileparts(mfilename('fullpath')));
+            testCase.main_dir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
             testCase.mrc_dir = fullfile(testCase.main_dir, 'matlab');
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
             addpath(testCase.mrc_dir)
@@ -23,7 +33,7 @@ classdef MRCTest < matlab.unittest.TestCase
             end
             disp('start redis server')
             system(['start "redis_server" /D "' testCase.redis_server_dir '" start_mrc_server.bat']);
-            output = MRCTest.wait_for_cond(@() mrc.redis_cmd('ping'), @(x) strcmpi(x, 'pong'), 1, 10);
+            output = mrc.test.wait_for_cond(@() mrc.redis_cmd('ping'), @(x) strcmpi(x, 'pong'), 1, 10);
             assert(output, 'could not find redis server after initialization');
             mrc.flush_db;
         end
@@ -31,7 +41,7 @@ classdef MRCTest < matlab.unittest.TestCase
     
     methods(TestClassTeardown)        
         function close_redis(testCase)
-            MRCTest.kill_all_workers;
+            mrc.test.kill_all_workers;
             disp('close redis')
             [val, msg] = system('taskkill /f /t /fi "windowtitle eq redis_server"');
         end        
@@ -39,28 +49,22 @@ classdef MRCTest < matlab.unittest.TestCase
     
     methods        
         function new_worker_id = start_worker(testCase)            
-            n_workers_before = length(MRCTest.get_list_of_workers);
+            n_workers_before = length(mrc.test.get_list_of_workers);
                 
             system(['start "worker" /D "' testCase.mrc_dir '" start_matlab_worker.bat']);
-            [output, workers] = MRCTest.wait_for_cond(@() MRCTest.get_list_of_workers, @(x) length(x) == n_workers_before + 1, 1, 30);
+            [output, workers] = mrc.test.wait_for_cond(@() mrc.test.get_list_of_workers, @(x) length(x) == n_workers_before + 1, 1, 30);
             assert(output, 'worker start and join failed');
             worker_ids = str2double(cellfun(@(x) {strrep(x, 'worker:', '')}, workers));
             new_worker_id = ['worker:' num2str(worker_ids(end))]; 
-            output = MRCTest.wait_for_cond(@() mrc.redis_cmd(['hget ' new_worker_id ' status']), @(x) strcmpi(x, 'active'), 1, 30);
+            output = mrc.test.wait_for_cond(@() mrc.redis_cmd(['hget ' new_worker_id ' status']), @(x) strcmpi(x, 'active'), 1, 30);
             assert(output, 'new worker initialization failed');
-        end
-    end
-    
-    methods(Test)
-        function worker_simple_test(testCase)    
-            worker_id = testCase.start_worker;
         end
     end
 
     methods(Static)        
         function kill_all_workers
             disp('kill all workers')
-            workers = MRCTest.get_list_of_workers;
+            workers = mrc.test.get_list_of_workers;
             for ind = 1:length(workers)
                 res = mrc.redis_cmd(['hget ' char(workers{ind}) ' status']);
                 if strcmpi(res, 'active')
@@ -69,7 +73,7 @@ classdef MRCTest < matlab.unittest.TestCase
             end
             
             for ind = 1:length(workers)
-                output = MRCTest.wait_for_cond(@() mrc.redis_cmd(['hget ' char(workers{ind}) ' status']), ...
+                output = mrc.test.wait_for_cond(@() mrc.redis_cmd(['hget ' char(workers{ind}) ' status']), ...
                             @(x) ~strcmpi(x, 'kill'), 1, 30);
                 assert(output, ['could not kill worker ' workers{ind}])
             end
