@@ -1,5 +1,5 @@
 classdef test < matlab.unittest.TestCase
-    % runtests('MRCTest'); % in src/matlab
+    % runtests('mrc.test'); % in src/matlab
     % check in advance that no other redis / cluster is running
     % with the same configurations
     properties
@@ -9,18 +9,12 @@ classdef test < matlab.unittest.TestCase
     end
         
     methods(Test)
-        function worker_simple_test(testCase)    
-            worker_id = testCase.start_worker;
-        end
-        
-        function get_tasks_test(testCase)
-            % test get_db_id,             
-        end
+		test_example(testCase);
     end
     
     methods(TestClassSetup)
         function start_redis(testCase)
-            testCase.main_dir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+            testCase.main_dir = fileparts(fileparts(fileparts(fileparts(mfilename('fullpath')))));
             testCase.mrc_dir = fullfile(testCase.main_dir, 'matlab');
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
             addpath(testCase.mrc_dir)
