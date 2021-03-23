@@ -102,6 +102,7 @@ classdef test < matlab.unittest.TestCase
     
     methods(TestClassSetup)
         function start_redis(testCase)
+            disp('Start setup for tests')
             testCase.main_dir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
             testCase.mrc_dir = fullfile(testCase.main_dir, 'matlab');
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
@@ -123,6 +124,7 @@ classdef test < matlab.unittest.TestCase
     
     methods(TestClassTeardown)        
         function close_redis(testCase)
+            disp('Start teardown of tests')
             mrc.test.kill_all_workers;
             disp('close redis')
             [val, msg] = system('taskkill /f /t /fi "windowtitle eq redis_server"');
