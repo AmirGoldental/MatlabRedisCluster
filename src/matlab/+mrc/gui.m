@@ -59,71 +59,60 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
         refresh();
     end
 gui_status.active_filter_button = 'pending';
-button_length = 0.13;
-button_height = 0.04;
-button_y_ofset = 0.95;
-
-filter_buttons.pre_pending = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Pre Pending Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
-    'Position', [0.01, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('pre_pending'), 'FontName', 'Consolas', 'FontSize', 12);
-filter_buttons.pending = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Pending Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
-    'Position', [0.01 + button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('pending'), 'FontName', 'Consolas', 'FontSize', 12);
-filter_buttons.ongoing = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Ongoing Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
-    'Position', [0.01 + 2*button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('ongoing'), 'FontName', 'Consolas', 'FontSize', 12);
-filter_buttons.finished = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Finished Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
-    'Position', [0.01 + 3*button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('finished'), 'FontName', 'Consolas', 'FontSize', 12);
-filter_buttons.failed = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Failed Tasks', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
-    'Position', [0.01 + 4*button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('failed'), 'FontName', 'Consolas', 'FontSize', 12);
-filter_buttons.workers = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Workers', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press,...
-    'Position', [0.01 + 5*button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) filter_button_callback('workers'), 'FontName', 'Consolas', 'FontSize', 12);
-
+buttons_num = 0;
+    function hndl = new_button(button_string, button_callback)
+        button_length = 0.13;
+        button_height = 0.04;
+        button_y_ofset = 0.95;
+        hndl = uicontrol(fig, 'Style', 'pushbutton', ...
+            'String', button_string, 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+            'Position', [0.01 + buttons_num*button_length, button_y_ofset, button_length, button_height], ...
+            'callback', button_callback, ...
+            'FontName', 'Consolas', 'FontSize', 12);
+        buttons_num = buttons_num + 1;
+    end
+filter_buttons.pre_pending = new_button('Pre Pending Tasks', @(~,~) filter_button_callback('pre_pending'));
+filter_buttons.pending = new_button('Pending Tasks', @(~,~) filter_button_callback('pending'));
+filter_buttons.ongoing = new_button('Ongoing Tasks', @(~,~) filter_button_callback('ongoing'));
+filter_buttons.finished = new_button('Finished Tasks', @(~,~) filter_button_callback('finished'));
+filter_buttons.failed = new_button('Failed Tasks', @(~,~) filter_button_callback('failed'));
+filter_buttons.workers = new_button('Workers', @(~,~) filter_button_callback('workers'));
+refresh_button = new_button('Refresh', @(~,~) refresh());
+load_more_button_position = refresh_button.Position;
+load_more_button_position(1) = 0.99 - load_more_button_position(3);
+refresh_button.Position = load_more_button_position;
 
 command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'FontName', 'Consolas', 'FontSize', 16, 'Max', 2,...
-    'Units', 'normalized', 'Position', [0.01, 0.02, 0.98, button_y_ofset-0.02], ...
+    'Units', 'normalized', 'Position', [0.01, 0.02, 0.98, 0.93], ...
     'Callback', @(~,~) listbox_callback, 'KeyPressFcn', @fig_key_press, ...
     'BackgroundColor', colors.list_background, 'Value', 1);
 
 context_menus.pre_pending = uicontextmenu(fig);
 uimenu(context_menus.pre_pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.pre_pending, 'Text', 'Force Start', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
+uimenu(context_menus.pre_pending, 'Text', 'Force Start', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('pending'));
 
 context_menus.pending = uicontextmenu(fig);
 uimenu(context_menus.pending, 'Text', 'Remove', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.pending, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) mark_selceted_tasks_as_finished);
+uimenu(context_menus.pending, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('finished'));
 
 context_menus.ongoing = uicontextmenu(fig);
 uimenu(context_menus.ongoing, 'Text', 'Abort', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
 
 context_menus.failed = uicontextmenu(fig);
 uimenu(context_menus.failed, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
-uimenu(context_menus.failed, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) mark_selceted_tasks_as_finished);
+uimenu(context_menus.failed, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('pending'));
+uimenu(context_menus.failed, 'Text', 'Mark as finished', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('finished'));
 
 context_menus.finished = uicontextmenu(fig);
 uimenu(context_menus.finished, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) remove_selceted_tasks);
-uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) move_selected_tasks_to_pending);
+uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('pending'));
 
 context_menus.workers = uicontextmenu(fig);
-uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) kill_selceted_workers);
-uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) suspend_selceted_workers);
-uimenu(context_menus.workers, 'Text', 'Activate', 'MenuSelectedFcn', @(~,~) activate_selceted_workers);
+uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('kill'));
+uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('suspended'));
+uimenu(context_menus.workers, 'Text', 'Activate', 'MenuSelectedFcn', @(~,~) change_status_selected_keys('active'));
 
-load_more_button = uicontrol(fig, 'Style', 'pushbutton', ...
-    'String', 'Load More', 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
-    'Position', [0.99-button_length, button_y_ofset, button_length, button_height], ...
-    'callback', @(~,~) refresh(), 'FontName', 'Consolas', 'FontSize', 12);
 
 refresh()
 
@@ -138,29 +127,28 @@ refresh()
         command_list.Value = [];
         command_list.String = {};
         
-        cluster_status = mrc.get_cluster_status();
-        filter_buttons.pre_pending.String = [num2str(cluster_status.num_pre_pending) ' Pre-pending Tasks'];
-        filter_buttons.pending.String = [num2str(cluster_status.num_pending) ' Pending Tasks'];
-        filter_buttons.ongoing.String = [num2str(cluster_status.num_ongoing) ' Ongoing Tasks'];
-        filter_buttons.finished.String = [num2str(cluster_status.num_finished) ' Finished Tasks'];
-        filter_buttons.failed.String = [num2str(cluster_status.num_failed) ' Failed Tasks'];
-        filter_buttons.workers.String = [num2str(cluster_status.num_workers) ' Workers'];
+        cluster_status = structfun(@num2str, mrc.get_cluster_status(), 'UniformOutput', false);
+        filter_buttons.pre_pending.String = [cluster_status.num_pre_pending ' Pre-pending Tasks'];
+        filter_buttons.pending.String = [cluster_status.num_pending ' Pending Tasks'];
+        filter_buttons.ongoing.String = [cluster_status.num_ongoing ' Ongoing Tasks'];
+        filter_buttons.finished.String = [cluster_status.num_finished ' Finished Tasks'];
+        filter_buttons.failed.String = [cluster_status.num_failed ' Failed Tasks'];
+        filter_buttons.workers.String = [cluster_status.num_workers ' Workers'];
         
-        if strcmp(category, 'workers')    
+        if strcmp(category, 'workers')
             worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
-            load_more_button.Enable = 'off';
             if numel(worker_keys) == 0
                 command_list.String = '';
-                command_list.UserData.keys = [];  
-                return              
+                command_list.UserData.keys = [];
+                return
             end
-            workers = get_redis_hash(worker_keys);                
+            workers = get_redis_hash(worker_keys);
             for cell_idx = 1:numel(workers)
                 if strcmpi(workers{cell_idx}.status, 'active')
                     if ~strcmpi(workers{cell_idx}.current_task, 'None')
                         workers{cell_idx}.status = 'working';
                     end
-                    if (now - datenum(workers{cell_idx}.last_ping))*24*60 > 5   
+                    if (now - datenum(workers{cell_idx}.last_ping))*24*60 > 5
                         workers{cell_idx}.status = [workers{cell_idx}.status ', not responding for ' num2str(round((now - datenum(workers{cell_idx}.last_ping))*24*60)) ' minutes'];
                     end
                 end
@@ -202,18 +190,11 @@ refresh()
             case 'finished'
                 command_list.String = cellfun(@(task) strcat("[", task.finished_on, "] (",...
                     task.created_by, "->", task.worker, "): ", task.command), tasks);
-            case 'failed'           
+            case 'failed'
                 command_list.String = cellfun(@(datum) strcat("[",datum.failed_on, "] (",...
-                        datum.created_by, "->", datum.worker, "): ", datum.command), tasks);
+                    datum.created_by, "->", datum.worker, "): ", datum.command), tasks);
         end
         command_list.UserData.keys = cellfun(@(task) task.key, tasks, 'UniformOutput', false);
-
-        if size(command_list.String,1) < cluster_status.(['num_' category])
-            load_more_button.Enable = 'on';
-        else
-            load_more_button.Enable = 'off';
-        end
-        
     end
 
     function filter_button_callback(category)
@@ -223,13 +204,13 @@ refresh()
         refresh();
     end
 
-    function details()        
+    function details()
         keys = command_list.UserData.keys(command_list.Value);
         cellfun(@show_key, keys);
     end
 
     function show_key(key)
-        key_struct = get_redis_hash(key);  
+        key_struct = get_redis_hash(key);
         strcells = strcat(fieldnames(key_struct), ' : "', cellstr(struct2cell(key_struct)), '"');
         for cell_idx = 1:numel(strcells)
             cell_content = strcells{cell_idx};
@@ -279,32 +260,13 @@ refresh()
         end
     end
 
-    function kill_selceted_workers()
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'kill')
+    function change_status_selected_keys(status)
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), status)
+        if strcmpi(status, 'active')
+            pause(1)
+        end
         refresh;
     end
-
-    function suspend_selceted_workers()
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'suspended')
-        refresh;
-    end
-    
-    function activate_selceted_workers()
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'active')
-        pause(1)
-        refresh;
-    end
-
-    function move_selected_tasks_to_pending()
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'pending');
-        refresh;
-    end
-
-    function mark_selceted_tasks_as_finished()
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'finished')
-        refresh;
-    end
-
 
     function remove_selceted_tasks()
         switch gui_status.active_filter_button
@@ -348,7 +310,7 @@ refresh()
             refresh();
         end
     end
-    
+
     function retry_task_on_this_machine(task)
         path2add = char(task.path2add);
         if ~strcmpi(path2add, 'None')
