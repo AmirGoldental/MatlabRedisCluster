@@ -146,17 +146,15 @@ refresh()
         filter_buttons.failed.String = [num2str(cluster_status.num_failed) ' Failed Tasks'];
         filter_buttons.workers.String = [num2str(cluster_status.num_workers) ' Workers'];
         
-        if strcmp(category, 'workers')
-            keys = arrayfun(@(worker_id) {['worker:' num2str(worker_id)]}, (1:cluster_status.num_workers)');
+        if strcmp(category, 'workers')    
+            worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
             load_more_button.Enable = 'off';
-            if numel(keys) == 0
+            if numel(worker_keys) == 0
                 command_list.String = '';
                 command_list.UserData.keys = [];  
                 return              
             end
-            
-            workers = get_redis_hash(keys);                
-            workers = workers(cellfun(@(worker) ~any(strcmpi(worker.status, {'kill','dead'})), workers));
+            workers = get_redis_hash(worker_keys);                
             for cell_idx = 1:numel(workers)
                 if strcmpi(workers{cell_idx}.status, 'active')
                     if ~strcmpi(workers{cell_idx}.current_task, 'None')
