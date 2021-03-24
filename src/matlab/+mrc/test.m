@@ -36,42 +36,70 @@ classdef test < matlab.unittest.TestCase
         end
         
         function test_get_redis_hash(testCase)  
-            mrc.redis_cmd('hmset test this that they are it 0');
-            mrc.redis_cmd('hmset another they are here 0');
             output = get_redis_hash({});
             assert(isempty(output), 'get_redis_hash empty input did not result in empty output')
-            output = get_redis_hash('test');
-            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
-                    'get_redis_hash wrong result');
+            mrc.redis_cmd('hmset test_hash field1 value1 field2 value2 field3_numeric 0');
+            mrc.redis_cmd('hmset test_hash2 field1 value3 field2_numeric 1');
+            output = get_redis_hash('test_hash');
+            assert(...
+                strcmpi(output.field1, 'value1') && ...
+                strcmpi(output.field2, 'value2') && ...
+                strcmpi(output.field3_numeric, '0'), ...
+                'get_redis_hash wrong result');
 
-            output = get_redis_hash({'test'});
+            output = get_redis_hash({'test_hash'});
             assert(length(output) == 1, 'get_redis_hash wrong result length');
             output = output{1};
-            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
-                    'get_redis_hash wrong result');
+            assert(...
+                strcmpi(output.field1, 'value1') && ...
+                strcmpi(output.field2, 'value2') && ...
+                strcmpi(output.field3_numeric, '0'), ...
+                'get_redis_hash wrong result');
 
-            output_both = get_redis_hash({'test', 'another'});
+            output_both = get_redis_hash({'test_hash', 'test_hash2'});
             output = output_both{1};
-            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
-                    'get_redis_hash wrong result');
+            assert(...
+                strcmpi(output.field1, 'value1') && ...
+                strcmpi(output.field2, 'value2') && ...
+                strcmpi(output.field3_numeric, '0'), ...
+                'get_redis_hash wrong result');
             output = output_both{2};
-            assert(strcmpi(output.they, 'are') && strcmpi(output.here, '0'), 'get_redis_hash wrong result');
+            assert(...
+                strcmpi(output.field1, 'value3') && ...
+                strcmpi(output.field2_numeric, '1'), ...
+                'get_redis_hash wrong result');
             
-            output_both = get_redis_hash({'bad', 'test'});
+            output_both = get_redis_hash({'bad_hash', 'test_hash'});
             output = output_both{2};
-            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
-                    'get_redis_hash wrong result');
+            assert(...
+                strcmpi(output.field1, 'value1') && ...
+                strcmpi(output.field2, 'value2') && ...
+                strcmpi(output.field3_numeric, '0'), ...
+                'get_redis_hash wrong result');
                 
-            output_both = get_redis_hash({'test', 'bad'});
+            output_both = get_redis_hash({'test_hash', 'bad_hash'});
             output = output_both{1};
-            assert(strcmpi(output.this, 'that') && strcmpi(output.they, 'are') && strcmpi(output.it, '0'), ...
-                    'get_redis_hash wrong result');
+            assert(...
+                strcmpi(output.field1, 'value1') && ...
+                strcmpi(output.field2, 'value2') && ...
+                strcmpi(output.field3_numeric, '0'), ...
+                'get_redis_hash wrong result');
                 
-            output = get_redis_hash({'bad'});
+            output = get_redis_hash({'bad_hash'});
             output = output{1};
             assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
-            output = get_redis_hash('bad'); 
+            output = get_redis_hash('bad_hash'); 
             assert(isempty(fieldnames(output)), 'get_redis_hash wrong result on empty hash');
+            
+            assert(strcmpi(get_redis_hash('test_hash', 'field2'), 'value2'), ...
+                'get_redis_hash wrong result of get field');  
+            
+            values = get_redis_hash({'test_hash', 'test_hash2'}, 'field1');
+            assert(strcmpi(values{1}, 'value1'), ...
+                'get_redis_hash wrong result of get field');  
+            assert(strcmpi(values{2}, 'value3'), ...
+                'get_redis_hash wrong result of get field'); 
+            mrc.redis_cmd({'DEL test_hash', 'DEL test_hash2'});
         end
 
         function test_set_redis_hash(testCase)  
@@ -99,18 +127,6 @@ classdef test < matlab.unittest.TestCase
             end
         end
         
-        function test_kill_all_workers(testCase) 
-            disp('Test kill all workers')
-            testCase.start_worker;
-            testCase.start_worker;
-            workers = mrc.test.get_list_of_workers;            
-            for ind = 1:length(workers)
-                cmd = ['hget ' char(workers{ind}) ' status'];
-                output = mrc.test.wait_for_cond(@() ~strcmpi(mrc.redis_cmd(cmd), 'kill'), 1, 30);
-                assert(output, ['could not kill worker ' workers{ind}])
-            end
-        end
-        
     end
     
     methods(TestClassSetup)
@@ -135,14 +151,16 @@ classdef test < matlab.unittest.TestCase
         end
     end
     
-    methods(TestClassTeardown)        
+    methods(TestClassTeardown)
         function close_redis(testCase)
             disp('Start teardown of tests')
+            disp('Kill all workers')
             mrc.change_key_status('all_workers', 'kill')
-            workers = mrc.test.get_list_of_workers;
+            workers = mrc.test.get_list_of_workers;            
             for ind = 1:length(workers)
                 cmd = ['hget ' char(workers{ind}) ' status'];
-                output = mrc.test.wait_for_cond(@() ~strcmpi(mrc.redis_cmd(cmd), 'kill'), 1, 30);
+                output = mrc.test.wait_for_cond(@() ~strcmpi(mrc.redis_cmd(cmd), 'dead'), 1, 30);
+                assert(output, ['could not kill worker ' workers{ind}])
             end
             disp('Close redis')
             [val, msg] = system('taskkill /f /t /fi "windowtitle eq redis_server"');
@@ -163,7 +181,7 @@ classdef test < matlab.unittest.TestCase
         end
     end
 
-    methods(Static)              
+    methods(Static)
         function workers = get_list_of_workers
             workers = mrc.redis_cmd('keys worker:*');
             if isempty(workers)
