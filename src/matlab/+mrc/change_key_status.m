@@ -10,7 +10,7 @@ function change_key_status(key, status)
 
 % DOC
 % all possible task status: pre_pending, pending, ongoing, finished, failed
-% all possible worker status: initializing, active, suspended, kill, dead
+% all possible worker status: active, suspended, restart, kill, dead
 
 if iscell(key)
     for cell_idx = 1:numel(key)
@@ -28,8 +28,10 @@ if strncmp(key, 'task', 4)
 elseif strncmp(key, 'worker', 6)
     change_worker_status(key, status)
 elseif strcmpi(key, 'all_workers')
-    worker_ids = 1:redis_str2double(mrc.redis_cmd('GET workers_count'));
-    worker_keys = arrayfun(@(worker_id) ['worker:' num2str(worker_id)], worker_ids, 'UniformOutput', false);
+    worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
+    if strcmpi(status, 'dead')
+        mrc.change_key_status(worker_keys, 'kill');
+    end
     mrc.change_key_status(worker_keys, status);
 else
     error('Unrecognized key')
@@ -74,7 +76,6 @@ end
 
 function change_worker_status(worker_key, status)
 current_status = char(mrc.redis_cmd(['HGET ' worker_key ' status']));
-
 switch status
     case 'active'
         if strcmpi(current_status, 'suspended')
@@ -83,33 +84,21 @@ switch status
     case 'suspended'
         if strcmpi(current_status, 'active')
             mrc.redis_cmd(['HSET ' worker_key ' status suspended']);
-            mrc.redis_cmd(['SMOVE active_workers suspended_workers ' worker_key]);
+        end
+    case 'restart'        
+        if any(strcmpi(current_status, {'active','suspended'}))
+            mrc.redis_cmd({['SREM available_workers ' worker_key], ...
+                ['HSET ' worker_key ' status restart']})
         end
     case 'kill'
-        if ~strcmpi(current_status, 'dead')
-            mrc.redis_cmd(['HSET ' worker_key ' status kill'])
+        if ~any(strcmpi(current_status, {'kill', 'dead'}))
+            mrc.redis_cmd({['SREM available_workers ' worker_key], ...
+                ['HSET ' worker_key ' status kill']})
         end
     case 'dead'
-        if ~strcmpi(current_status, 'dead')
-            mrc.redis_cmd(['HSET ' worker_key ' status kill']);
-            tic
-            while toc<30
-                if strcmpi(get_redis_hash(worker_key, 'status'), 'dead')
-                    return
-                else
-                    pause(3)
-                end
-            end
+        if ~strcmpi(current_status, 'kill')
+            mrc.change_key_status(worker_key, 'kill')
         end
+        wait_for_condition(@() strcmpi(get_redis_hash(worker_key, 'status'), 'dead'));
 end
-end
-
-
-function output = redis_str2double(input)
-    input = strip(input);
-    if isempty(input)
-        output = 0;
-    else
-        output = str2double(input);
-    end
 end

@@ -21,6 +21,7 @@ worker.current_task = 'None';
 worker.last_command = 'None';
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
+mrc.redis_cmd(['SADD available_workers ' worker_key]);
 disp(worker)
 
 clear functions;
@@ -46,8 +47,7 @@ while any(strcmp(worker_status, {'active', 'suspended'}))
         % to activate worker, 'LPUSH worker:n:activate 1'
         mrc.redis_cmd({['BLPOP ' worker_key ':activate 0'],...
             ['DEL ' worker_key ':activate'], ...
-            ['HSET ' worker_key ' status active'], ...
-            ['SMOVE suspended_workers active_workers ' worker_key]});
+            ['HSET ' worker_key ' status active']});
         disp([char(datetime) ': Worker activated'])
     end
     perform_task(worker_key, db_timetag, conf.log_path)    
@@ -71,7 +71,7 @@ worker_fig = figure('MenuBar', 'none', 'Name', worker_key,...
     'NumberTitle' ,'off', 'Units', 'normalized');
 uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
     'Position', [0.01 0.01 0.98 0.98], 'String', ['Kill ' worker_key],...
-    'Callback', @(~,~) mrc.redis_cmd(['HSET ' worker_key ' status kill']),...
+    'Callback', @(~,~) mrc.change_key_status(worker_key, 'kill'),...
     'FontSize', 16, 'FontName', 'Consolas', 'ForegroundColor' ,'r')
 drawnow
 end

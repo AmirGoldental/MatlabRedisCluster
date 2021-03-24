@@ -282,11 +282,7 @@ refresh()
     end
 
     function kill_selceted_workers()
-        for worker_key = command_list.UserData.keys(command_list.Value)'
-            if ~strcmpi(mrc.redis_cmd(['HGET ' char(worker_key{1}) ' status']), 'dead')
-                mrc.redis_cmd(['HSET ' char(worker_key{1}) ' status kill'])
-            end
-        end
+        mrc.change_key_status(command_list.UserData.keys(command_list.Value), 'kill')
         refresh;
     end
 
