@@ -49,6 +49,55 @@
          }
       ]
    },
+   "mrc.start_worker": {
+      "inputs": [
+         {
+            "name": "wait",
+            "kind": "flag",
+            "type": [
+               "choices={'wait'}"
+            ]
+         }
+      ]
+   },
+   "mrc.change_key_status": {
+      "inputs": [
+         {
+            "name": "key",
+            "kind": "required",
+            "type": [
+               "char",
+               "choices={'all_workers'}"
+            ]
+         },
+         {
+            "name": "status",
+            "kind": "optional",
+            "type": [
+               "choices={'active','suspended','kill','dead'}"
+            ]
+         }
+      ]
+   },
+   "mrc.change_key_status": {
+      "inputs": [
+         {
+            "name": "key",
+            "kind": "required",
+            "type": [
+               "char",
+               "choices={'all_tasks'}"
+            ]
+         },
+         {
+            "name": "status",
+            "kind": "optional",
+            "type": [
+               "choices={'pending','finished'}"
+            ]
+         }
+      ]
+   },
    "mrc.redis_cmd": {
       "inputs": [
          {
