@@ -1,11 +1,11 @@
 function [output, redis_cmd_prefix] = redis_cmd(command, varargin)
 persistent last_redis_cmd
 min_interval_to_use_timeout = 10*60; % seconds
-default_timeout = 5;
+default_timeout = 3;
 if isempty(last_redis_cmd)
     last_redis_cmd = 0;
 end
-if ~any(strcmpi('timeout', varargin)) && (last_redis_cmd - now) > min_interval_to_use_timeout / (60*60*24)
+if ~any(strcmpi('timeout', varargin)) && (now - last_redis_cmd) > min_interval_to_use_timeout / (60*60*24)
    varargin = [varargin  {'timeout', default_timeout}];
 end
 
@@ -56,7 +56,12 @@ for command_idx = 1:numel(command)
         [this_exit_flag, this_output] = system(['(' cmd ') | ' redis_cmd_prefix]);
         
         if this_exit_flag
-           warning('redis command exited with an error') 
+            this_output = strip(this_output);
+            if ~isempty(this_output)
+                error(this_output)
+            else
+                warning('redis command exited with an error')
+            end
         end
         if strcmp(this_output(1:min(26,end)), 'Could not connect to Redis')
             error('Could not connect to Redis')
