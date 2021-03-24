@@ -9,13 +9,8 @@ new_worker = ['worker:' num2str(workers_count+1)];
 system(['start "' new_worker '" /D "' fileparts(fileparts(mfilename('fullpath'))) '" start_matlab_worker.bat']);
 
 if any(strcmpi(varargin, 'wait'))
-    tic
-    while toc < 30
-        if strcmpi(get_redis_hash(new_worker, 'status'), 'active')
+    if wait_for_condition(@() strcmpi(get_redis_hash(new_worker, 'status'), 'active'))
             disp([new_worker ' is active!']);
-            return
-        end
-        pause(2);
     end
 end
 end

@@ -88,12 +88,12 @@ switch status
     case 'restart'        
         if any(strcmpi(current_status, {'active','suspended'}))
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
-                ['HSET ' worker_key ' status restart']})
+                ['HSET ' worker_key ' status restart']});
         end
     case 'kill'
         if ~any(strcmpi(current_status, {'kill', 'dead'}))
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
-                ['HSET ' worker_key ' status kill']})
+                ['HSET ' worker_key ' status kill']});
         end
     case 'dead'
         if ~strcmpi(current_status, 'kill')
