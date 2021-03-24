@@ -18,21 +18,15 @@ classdef test < matlab.unittest.TestCase
             runing = [];
         end
     end
-    methods(Test)
-        function test_start_worker(testCase)    
-            worker_id = testCase.start_worker;
-            mrc.change_key_status('all_workers', 'kill')
-        end
-        
+    methods(Test)        
         function test_get_db_timetag_and_flush_db(testCase)    
 			mrc.redis_cmd('set db_timetag hello');
 			tag = get_db_timetag;
-			assert(strcmpi(tag, 'hello'), 'get_db_timetag did not returned current timetag');
-			mrc.redis_cmd('set tmp 0');
+			mrc.redis_cmd('set tmp a');
 			mrc.flush_db;
 			new_tag = get_db_timetag;			
 			assert(~strcmpi(new_tag, tag), 'get_db_timetag was not changed after db reset');
-			assert(~strcmpi(mrc.redis_cmd('get tmp'), '0'), 'data stays after db flush');
+			assert(~strcmpi(mrc.redis_cmd('get tmp'), 'a'), 'data stays after db flush');
         end
         
         function test_get_redis_hash(testCase)  
@@ -127,6 +121,13 @@ classdef test < matlab.unittest.TestCase
             end
         end
         
+        function test_worker_life_cycle(testCase)
+            workers_count = mrc.redis_cmd('get workers_count');
+            mrc.start_worker('wait');
+            assert(~strcmp(workers_count,mrc.redis_cmd('get workers_count')), 'error in start_worker');
+            mrc.change_key_status('all_workers', 'dead');
+        end
+        
     end
     
     methods(TestClassSetup)
@@ -137,14 +138,16 @@ classdef test < matlab.unittest.TestCase
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
             addpath(testCase.mrc_dir)
             try
-                mrc.redis_cmd('ping');
-                error('found redis server before initialization, check for other processes');
-            catch err
+                if strcmpi(mrc.redis_cmd('ping'), 'PONG')
+                    warning('found redis server before initialization')
+                    mrc.redis_cmd('SHUTDOWN NOSAVE');
+                end
             end
-            disp('start redis server')
+            disp('Start redis server')
             system(['start "redis_server" /D "' testCase.redis_server_dir '" start_mrc_server.bat']);
             output = mrc.test.wait_for_cond(@() strcmpi(mrc.redis_cmd('ping'), 'pong'), 1, 10);
             assert(output, 'could not find redis server after initialization');
+            mrc.change_key_status('all_workers', 'dead')
             mrc.flush_db;
             disp('End setup for tests')
             disp('-------------------')
@@ -155,42 +158,20 @@ classdef test < matlab.unittest.TestCase
         function close_redis(testCase)
             disp('Start teardown of tests')
             disp('Kill all workers')
-            mrc.change_key_status('all_workers', 'kill')
-            workers = mrc.test.get_list_of_workers;            
+            mrc.change_key_status('all_workers', 'dead')
+            workers = split(mrc.redis_cmd('keys worker:*'));            
             for ind = 1:length(workers)
-                cmd = ['hget ' char(workers{ind}) ' status'];
-                output = mrc.test.wait_for_cond(@() ~strcmpi(mrc.redis_cmd(cmd), 'dead'), 1, 30);
-                assert(output, ['could not kill worker ' workers{ind}])
+                output = mrc.test.wait_for_cond(...
+                    @() strcmpi(get_redis_hash(workers{ind}, 'status'), 'dead'), 1, 30);
+                assert(output, ['Could not kill worker ' workers{ind}])
             end
             disp('Close redis')
-            [val, msg] = system('taskkill /f /t /fi "windowtitle eq redis_server"');
+            mrc.redis_cmd('SHUTDOWN NOSAVE');
         end        
     end
     
-    methods
-        function new_worker_id = start_worker(testCase)            
-            n_workers_before = length(mrc.test.get_list_of_workers);
-            system(['start "worker" /D "' testCase.mrc_dir '" start_matlab_worker.bat']);
-            output = mrc.test.wait_for_cond(@() length(mrc.test.get_list_of_workers) == n_workers_before + 1, 1, 30);
-            workers = mrc.test.get_list_of_workers;
-            assert(output, 'worker start and join failed');
-            worker_ids = str2double(cellfun(@(x) {strrep(x, 'worker:', '')}, workers));
-            new_worker_id = ['worker:' num2str(worker_ids(end))]; 
-            output = mrc.test.wait_for_cond(@() strcmpi(mrc.redis_cmd(['hget ' new_worker_id ' status']), 'active'), 1, 30);
-            assert(output, 'new worker initialization failed');
-        end
-    end
 
     methods(Static)
-        function workers = get_list_of_workers
-            workers = mrc.redis_cmd('keys worker:*');
-            if isempty(workers)
-                workers = {};
-            else
-                workers = strsplit(workers);
-            end            
-        end
-        
         function res = wait_for_cond(cond_func, pace, interval)
             res = true;
             for i = 0:pace:(interval - 1)
