@@ -224,31 +224,32 @@ refresh()
             'Position', [0.01 0.07 0.98 0.92], 'String', strcells,...
             'Callback', @(~,~) close(Hndl), 'FontSize', 12, ...
             'FontName', 'Consolas', 'HorizontalAlignment', 'left');
-        
+        key_buttons_num = 0;
+        function hndl = new_key_button(button_string, button_callback)
+            button_length = 0.18;
+            button_height = 0.05;
+            button_y_ofset = 0.01;
+            hndl = uicontrol(Hndl, 'Style', 'pushbutton', ...
+                'String', button_string, 'Units', 'normalized', 'KeyPressFcn', @fig_key_press, ...
+                'Position', [0.01 + key_buttons_num*(button_length+0.01), button_y_ofset, button_length, button_height], ...
+                'callback', button_callback, ...
+                'FontName', 'Consolas', 'FontSize', 12);
+            key_buttons_num = key_buttons_num + 1;
+        end
         if strncmp(key, 'task', 4) % task
             if any(strcmpi(key_struct.status, {'failed', 'finished'}))
-                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.01 0.01 0.18 0.05], 'FontSize', 13, ...
-                    'String', 'Retry', 'Callback', @(~,~) retry_task(key_struct, 'refresh'))
-                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.21 0.01 0.18 0.05], 'FontSize', 13, ...
-                    'String', 'Retry on this machine', 'Callback', @(~,~) retry_task_on_this_machine(key_struct))
+                new_key_button('Retry', @(~,~) change_status_selected_keys('pending', key))
+                new_key_button('Retry on this machine', @(~,~) retry_task_on_this_machine(key_struct))
                 
-                logfile = fullfile(conf.log_path, strrep(['DB_' get_db_timetag() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
-                if exist(logfile, 'file')
-                    uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                        'Position', [0.41 0.01 0.18 0.05], 'FontSize', 13, ...
-                        'String', 'Load Log', 'Callback', @(~,~) set(edit_widget, 'String', textread(logfile, '%[^\n]')))
+                log_file_full_path = fullfile(conf.log_path, strrep(['DB_' get_db_timetag() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
+                if exist(log_file_full_path, 'file')
+                    new_key_button('Show Log', @(~,~) set(edit_widget, 'String', textread(log_file_full_path, '%[^\n]')))
                 end
                 if strcmpi(key_struct.status, 'failed')
-                    uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                        'Position', [0.61 0.01 0.18 0.05], 'FontSize', 13, ...
-                        'String', 'Mark as finishd', 'Callback', @(~,~) mrc.change_key_status(key_struct.key, 'finished'))
+                    new_key_button('Mark as finishd',  @(~,~) change_status_selected_keys('finished', key))
                 end
             elseif strcmpi(key_struct.status, 'pre_pending')
-                uicontrol(Hndl, 'Style', 'pushbutton', 'Units', 'normalized', ...
-                    'Position', [0.01 0.01 0.18 0.05], 'FontSize', 13, ...
-                    'String', 'Force Start', 'Callback', @(~,~) mrc.change_key_status(key_struct.key, 'pending'))
+                new_key_button('Force Start',  @(~,~) change_status_selected_keys('pending', key))
             end
         end
         drawnow
@@ -260,8 +261,13 @@ refresh()
         end
     end
 
-    function change_status_selected_keys(status)
-        mrc.change_key_status(command_list.UserData.keys(command_list.Value), status)
+    function change_status_selected_keys(status, keys)
+        if ~exist('keys', 'var')
+            keys = command_list.UserData.keys(command_list.Value);
+        else
+            close;
+        end
+        mrc.change_key_status(keys, status)
         if strcmpi(status, 'active')
             pause(1)
         end
@@ -301,13 +307,6 @@ refresh()
                 refresh()
             case 'delete'
                 remove_selceted_tasks()
-        end
-    end
-
-    function retry_task(task, varargin)
-        mrc.change_key_status(task.key, 'pending')
-        if any(strcmpi('refresh', varargin))
-            refresh();
         end
     end
 
