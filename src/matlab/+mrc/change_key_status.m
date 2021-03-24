@@ -85,9 +85,21 @@ switch status
             mrc.redis_cmd(['HSET ' worker_key ' status suspended']);
             mrc.redis_cmd(['SMOVE active_workers suspended_workers ' worker_key]);
         end
-    case {'kill', 'dead'}
+    case 'kill'
         if ~strcmpi(current_status, 'dead')
             mrc.redis_cmd(['HSET ' worker_key ' status kill'])
+        end
+    case 'dead'
+        if ~strcmpi(current_status, 'dead')
+            mrc.redis_cmd(['HSET ' worker_key ' status kill']);
+            tic
+            while toc<30
+                if strcmpi(get_redis_hash(worker_key, 'status'), 'dead')
+                    return
+                else
+                    pause(3)
+                end
+            end
         end
 end
 end
