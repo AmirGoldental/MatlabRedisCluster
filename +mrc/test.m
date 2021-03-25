@@ -125,7 +125,7 @@ classdef test < matlab.unittest.TestCase
             workers_count = mrc.redis_cmd('get workers_count');
             mrc.start_worker('wait');
             assert(~strcmp(workers_count,mrc.redis_cmd('get workers_count')), 'error in start_worker');
-            mrc.change_key_status('all_workers', 'dead');
+            mrc.set_worker_status('all_workers', 'dead', 'wait');
         end
         
     end
@@ -147,7 +147,7 @@ classdef test < matlab.unittest.TestCase
             system(['start "redis_server" /D "' testCase.redis_server_dir '" start_mrc_server.bat']);
             output = mrc.test.wait_for_cond(@() strcmpi(mrc.redis_cmd('ping'), 'pong'), 1, 10);
             assert(output, 'could not find redis server after initialization');
-            mrc.change_key_status('all_workers', 'dead')
+            mrc.set_worker_status('all_workers', 'dead', 'wait')
             mrc.flush_db;
             disp('End setup for tests')
             disp('-------------------')
@@ -158,7 +158,7 @@ classdef test < matlab.unittest.TestCase
         function close_redis(testCase)
             disp('Start teardown of tests')
             disp('Kill all workers')
-            mrc.change_key_status('all_workers', 'dead')
+            mrc.set_worker_status('all_workers', 'dead', 'wait')
             workers = split(mrc.redis_cmd('keys worker:*'));            
             for ind = 1:length(workers)
                 output = mrc.test.wait_for_cond(...

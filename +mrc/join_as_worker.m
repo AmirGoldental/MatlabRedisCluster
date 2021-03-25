@@ -71,7 +71,7 @@ worker_fig = figure('MenuBar', 'none', 'Name', worker_key,...
     'NumberTitle' ,'off', 'Units', 'normalized');
 uicontrol(worker_fig, 'Style', 'pushbutton', 'Units', 'normalized',...
     'Position', [0.01 0.01 0.98 0.98], 'String', ['Kill ' worker_key],...
-    'Callback', @(~,~) mrc.change_key_status(worker_key, 'kill'),...
+    'Callback', @(~,~) mrc.set_worker_status(worker_key, 'kill'),...
     'FontSize', 16, 'FontName', 'Consolas', 'ForegroundColor' ,'r')
 drawnow
 end
@@ -106,24 +106,15 @@ try
     disp(['>> ' char(task.command)]);
     eval(task.command)
     if strcmp(db_timetag, get_db_timetag())
-        mrc.change_key_status(task_key, 'finished');
+        mrc.set_task_status(task_key, 'finished');
     end
     disp([newline '   finished_on: ' str_to_redis_str(datetime) ])
 catch err
     json_err = jsonencode(err);
     json_err = join(split(json_err, ','), ',\n');
-    
+    set_redis_hash(task_key, 'err_msg', str_to_redis_str(json_err))
     if strcmp(db_timetag, get_db_timetag())
-        if strcmpi(task.fail_policy, 'continue')
-            mrc.redis_cmd(['EVALSHA ' script_SHA('update_dependent_tasks') '1 ' task_key]);
-        end
-        
-        mrc.redis_cmd({'MULTI', ...
-            ['LREM ongoing_tasks 0 ' task_key], ...
-            ['LPUSH failed_tasks ' task_key ], ...
-            ['HMSET ' task_key ' failed_on ' str_to_redis_str(datetime) ...
-            ' err_msg ' str_to_redis_str(json_err) ' status failed'], ...
-            'EXEC'});
+        mrc.set_task_status(task_key, 'failed');
     end
     disp([newline '   failed_on: ' str_to_redis_str(datetime) ])
     disp(['[ERROR] ' datestr(now, 'yyyy-mm-dd HH:MM:SS') ' : ' jsonencode(err)])

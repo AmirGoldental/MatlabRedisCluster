@@ -60,51 +60,51 @@
          }
       ]
    },
-   "mrc.change_key_status": {
+   "mrc.set_worker_status": {
       "inputs": [
          {
-            "name": "key",
+            "name": "worker_key",
             "kind": "required",
             "type": [
                "char",
-               "choices={'all_workers'}"
+               "choices={'all'}"
             ]
          },
          {
             "name": "status",
             "kind": "required",
             "type": [
-               "choices={'active','suspended','kill','dead'}"
+               "choices={'active','suspended','restart','dead'}"
             ]
          },
          {
-            "name": "wait",
+            "name": "wait_flag",
             "kind": "flag",
             "type": [
-               "choices={'force'}"
+               "choices={'wait'}"
             ]
          }
       ]
    },
-   "mrc.change_key_status": {
+   "mrc.set_task_status": {
       "inputs": [
          {
-            "name": "key",
+            "name": "tas_key",
             "kind": "required",
             "type": [
                "char",
-               "choices={'all_tasks'}"
+               "choices={'all','all_pre_pending','all_pending','all_ongoing','all_finished','all_failed'}"
             ]
          },
          {
             "name": "status",
             "kind": "required",
             "type": [
-               "choices={'pending','finished'}"
+               "choices={'pending','finished','failed'}"
             ]
          },
          {
-            "name": "wait",
+            "name": "force_flag",
             "kind": "flag",
             "type": [
                "choices={'force'}"

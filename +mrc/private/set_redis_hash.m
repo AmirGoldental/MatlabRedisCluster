@@ -1,4 +1,12 @@
-function set_redis_hash(redis_keys, matlab_structs)
+function set_redis_hash(redis_keys, varargin)
+% set_redis_hash(redis_key, matlab_struct)
+% set_redis_hash(redis_keys [cell array], matlab_structs [cell array])
+% set_redis_hash(redis_key, field_name, value [char])
+if numel(varargin) == 1
+    matlab_structs = varargin{1};
+else
+    matlab_structs = struct(varargin{1}, varargin{2});
+end
 if ~iscell(matlab_structs)
     matlab_structs = {matlab_structs};
 end
