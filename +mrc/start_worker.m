@@ -6,7 +6,7 @@ else
     workers_count = str2double(workers_count);
 end
 new_worker = ['worker:' num2str(workers_count+1)];
-system(['start "' new_worker '" /D "' fileparts(fileparts(mfilename('fullpath'))) '" start_matlab_worker.bat']);
+system(['start "' new_worker '" /D "' fileparts(fileparts(mfilename('fullpath'))) '" start_worker.bat']);
 
 if any(strcmpi(varargin, 'wait'))
     if wait_for_condition(@() strcmpi(get_redis_hash(new_worker, 'status'), 'active'))

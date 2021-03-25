@@ -7,7 +7,7 @@ if "%1%"=="-?" set check=true
 if "%1%"=="/h" set check=true
 if "%1%"=="/?" set check=true
 if "%check%"=="true" (
-	echo "start_mrc_server.bat [-h|--help|-?] [--service] [--remove-service]"
+	echo "start_redis_server.bat [-h|--help|-?] [--service] [--remove-service]"
 	exit /b
 )
 
@@ -26,4 +26,4 @@ if "%1"=="--remove-service" (
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 echo hostname is: %hostname%
 
-"%~dp0redis-server.exe" "%~dp0redis.conf"
+"%~dp0utils\redis-server.exe" "%~dp0redis.conf"
