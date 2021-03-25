@@ -72,9 +72,16 @@
          },
          {
             "name": "status",
-            "kind": "optional",
+            "kind": "required",
             "type": [
                "choices={'active','suspended','kill','dead'}"
+            ]
+         },
+         {
+            "name": "wait",
+            "kind": "flag",
+            "type": [
+               "choices={'force'}"
             ]
          }
       ]
@@ -91,9 +98,16 @@
          },
          {
             "name": "status",
-            "kind": "optional",
+            "kind": "required",
             "type": [
                "choices={'pending','finished'}"
+            ]
+         },
+         {
+            "name": "wait",
+            "kind": "flag",
+            "type": [
+               "choices={'force'}"
             ]
          }
       ]

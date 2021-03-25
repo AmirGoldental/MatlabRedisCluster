@@ -267,7 +267,7 @@ refresh()
         else
             close;
         end
-        mrc.change_key_status(keys, status)
+        mrc.change_key_status(keys, status, 'force')
         if strcmpi(status, 'active')
             pause(1)
         end
@@ -282,20 +282,20 @@ refresh()
                 end
             case 'pending'
                 for task_key = command_list.UserData.keys(command_list.Value)
-                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key{1}) '"'])
+                    mrc.redis_cmd(['LREM pending_tasks 0 "' char(task_key{1}) '"']);
                 end
             case 'ongoing'
                 for task_key = command_list.UserData.keys(command_list.Value)
                     worker_key = mrc.redis_cmd(['HGET ' char(task_key{1}) ' worker']);
-                    mrc.redis_cmd(['HSET ' char(worker_key) ' status restart'])
+                    mrc.redis_cmd(['HSET ' char(worker_key) ' status restart']);
                 end
             case 'finished'
                 for task_key = command_list.UserData.keys(command_list.Value)
-                    mrc.redis_cmd(['LREM finished_tasks 0 "' char(task_key{1}) '"'])
+                    mrc.redis_cmd(['LREM finished_tasks 0 "' char(task_key{1}) '"']);
                 end
             case 'failed'
                 for task_key = command_list.UserData.keys(command_list.Value)
-                    mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key{1}) '"'])
+                    mrc.redis_cmd(['LREM failed_tasks 0 "' char(task_key{1}) '"']);
                 end
         end
         refresh;
