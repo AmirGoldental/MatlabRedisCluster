@@ -17,7 +17,6 @@ if any(strcmpi('cmd_prefix', varargin))
     redis_cmd_prefix = varargin{find(strcmpi('cmd_prefix', varargin), 1) + 1};
 else
     mrc_path = fileparts(fileparts(mfilename('fullpath')));
-    killtimeout_path = fullfile(fileparts(mrc_path), 'utils', 'unix_timeout.bat');
     conf = read_conf_file;
     redis_cli_path = dir(conf.redis_cli_path);
     if isempty(redis_cli_path)
@@ -25,6 +24,8 @@ else
     end
     assert(length(redis_cli_path) == 1, 'Could not find redis-cli.exe');
     redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
+    killtimeout_path = fullfile(fileparts(redis_cli_path), 'unix_timeout.bat');
+
     redis_cmd_prefix = ['"' redis_cli_path '" -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
     

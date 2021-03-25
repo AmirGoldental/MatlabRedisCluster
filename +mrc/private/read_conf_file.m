@@ -1,7 +1,7 @@
 function conf_data = read_conf_file(file_path)
 if ~exist('file_path', 'var')
     mrc_path = fileparts(fileparts(fileparts(mfilename('fullpath'))));
-    file_path = fullfile(mrc_path, 'mrc_client.conf');    
+    file_path = fullfile(mrc_path, 'worker.conf');    
 end
 
 f = fopen(file_path);

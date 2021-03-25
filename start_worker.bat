@@ -1,7 +1,7 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
 
-set params_path=%~dp0%mrc_client.conf
+set params_path=%~dp0%worker.conf
 if "%1" == "" goto fill_params_path
 set params_path=%1
 :fill_params_path
