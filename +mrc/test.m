@@ -125,7 +125,8 @@ classdef test < matlab.unittest.TestCase
             workers_count = mrc.redis_cmd('get workers_count');
             mrc.start_worker('wait');
             assert(~strcmp(workers_count,mrc.redis_cmd('get workers_count')), 'error in start_worker');
-            mrc.set_worker_status('all_workers', 'dead', 'wait');
+            mrc.set_worker_status('all', 'dead');
+            pause(5)
         end
         
     end
@@ -140,14 +141,17 @@ classdef test < matlab.unittest.TestCase
             try
                 if strcmpi(mrc.redis_cmd('ping'), 'PONG')
                     warning('found redis server before initialization')
+                    mrc.set_worker_status('all', 'dead')
+                    pause(5)
                     mrc.redis_cmd('SHUTDOWN NOSAVE');
                 end
             end
             disp('Start redis server')
-            system(['start "redis_server" /D "' testCase.redis_server_dir '" start_mrc_server.bat']);
-            output = mrc.test.wait_for_cond(@() strcmpi(mrc.redis_cmd('ping'), 'pong'), 1, 10);
-            assert(output, 'could not find redis server after initialization');
-            mrc.set_worker_status('all_workers', 'dead', 'wait')
+            mrc.start_redis_server;
+            assert(wait_for_condition(@() strcmpi(mrc.redis_cmd('ping'), 'pong')), ...
+                'could not find redis server after initialization');
+            mrc.set_worker_status('all', 'dead')
+            pause(5)
             mrc.flush_db;
             disp('End setup for tests')
             disp('-------------------')
@@ -158,30 +162,11 @@ classdef test < matlab.unittest.TestCase
         function close_redis(testCase)
             disp('Start teardown of tests')
             disp('Kill all workers')
-            mrc.set_worker_status('all_workers', 'dead', 'wait')
-            workers = split(mrc.redis_cmd('keys worker:*'));            
-            for ind = 1:length(workers)
-                output = mrc.test.wait_for_cond(...
-                    @() strcmpi(get_redis_hash(workers{ind}, 'status'), 'dead'), 1, 30);
-                assert(output, ['Could not kill worker ' workers{ind}])
-            end
+            mrc.set_worker_status('all', 'dead')
+            pause(5)
             disp('Close redis')
             mrc.redis_cmd('SHUTDOWN NOSAVE');
         end        
     end
     
-
-    methods(Static)
-        function res = wait_for_cond(cond_func, pace, interval)
-            res = true;
-            for i = 0:pace:(interval - 1)
-                if cond_func()
-                    return
-                end
-                pause(pace);
-            end
-            res = false;
-            % error(['condition ' char(cond) ' was not met on ' char(func) ' after interval ' num2str(interval)]);
-        end
-    end
 end
