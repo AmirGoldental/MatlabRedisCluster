@@ -80,7 +80,7 @@ end
 
 function perform_task(worker_key, db_timetag, log_path)
 if ~strcmp(db_timetag, get_db_timetag())
-    return
+    exit;
 end
 
 redis_cmd = ['EVALSHA ' script_SHA('worker_pop_pendnig_task') '2 ' worker_key ' ' str_to_redis_str(datetime)];
