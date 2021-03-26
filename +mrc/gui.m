@@ -24,7 +24,7 @@ uimenu(actions_menu, 'Text', 'Clear failed', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Suspend all workers', ...
     'MenuSelectedFcn', @action);
-uimenu(actions_menu, 'Text', 'Activate all workers', ...
+uimenu(actions_menu, 'Text', 'Activate\Restart all workers', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     'MenuSelectedFcn', @action, 'ForegroundColor', [0.7,0,0]);
@@ -45,7 +45,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
             case 'Suspend all workers'
                 mrc.set_worker_status('all', 'suspended')
             case 'Activate all workers'
-                mrc.set_worker_status('all', 'active')
+                mrc.set_worker_status('all', 'restart')
             case 'Restart Cluster'
                 answer = questdlg('Are you sure you want to restart the cluster?', ...
                     'Restart cluster', ...
@@ -111,7 +111,7 @@ uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) set_se
 context_menus.workers = uicontextmenu(fig);
 uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('dead'));
 uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('suspended'));
-uimenu(context_menus.workers, 'Text', 'Activate', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('active'));
+uimenu(context_menus.workers, 'Text', 'Activate\Restart', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('restart'));
 
 
 refresh()
