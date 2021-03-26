@@ -155,7 +155,7 @@ refresh()
                 end
             end
             command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
-                worker.computer, "): ", worker.status), workers);
+                worker.computer, "): ", worker.status), workers, 'UniformOutput', false);
             command_list.UserData.keys = cellfun(@(worker) worker.key, workers, 'UniformOutput', false);
             return
         end

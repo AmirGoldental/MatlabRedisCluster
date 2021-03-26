@@ -21,6 +21,7 @@ else
     redis_cmds = cellfun( @(redis_key) ['HGET ' char(redis_key) ' ' char(field_name)], redis_keys, 'UniformOutput', false);
     redis_structs = mrc.redis_cmd(redis_cmds);
 end
+
 if unpack_single_output
     redis_structs = redis_structs{1};
 end
@@ -30,6 +31,6 @@ function redis_struct = redis_output_to_struct(redis_output)
 obj_cells = split(redis_output, newline);
 redis_struct = struct();
 for cell_idx = 1:2:(length(obj_cells)-1)
-    redis_struct.(obj_cells{cell_idx}) = string(obj_cells{cell_idx+1});
+    redis_struct.(obj_cells{cell_idx}) = char(obj_cells{cell_idx+1});
 end
 end

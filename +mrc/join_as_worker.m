@@ -19,6 +19,8 @@ worker.status = 'active';
 worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
 worker.current_task = 'None';
 worker.last_command = 'None';
+worker.last_ping = datetime();
+
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
 mrc.redis_cmd(['SADD available_workers ' worker_key]);
