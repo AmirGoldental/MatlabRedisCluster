@@ -126,7 +126,7 @@ classdef test < matlab.unittest.TestCase
             mrc.start_worker('wait');
             assert(~strcmp(workers_count,mrc.redis_cmd('get workers_count')), 'error in start_worker');
             mrc.set_worker_status('all', 'dead');
-            pause(5)
+            
         end
         
     end
@@ -142,7 +142,6 @@ classdef test < matlab.unittest.TestCase
                 if strcmpi(mrc.redis_cmd('ping'), 'PONG')
                     warning('found redis server before initialization')
                     mrc.set_worker_status('all', 'dead')
-                    pause(5)
                     mrc.redis_cmd('SHUTDOWN NOSAVE');
                 end
             end
@@ -151,7 +150,6 @@ classdef test < matlab.unittest.TestCase
             assert(wait_for_condition(@() strcmpi(mrc.redis_cmd('ping'), 'pong')), ...
                 'could not find redis server after initialization');
             mrc.set_worker_status('all', 'dead')
-            pause(5)
             mrc.flush_db;
             disp('End setup for tests')
             disp('-------------------')
@@ -163,7 +161,6 @@ classdef test < matlab.unittest.TestCase
             disp('Start teardown of tests')
             disp('Kill all workers')
             mrc.set_worker_status('all', 'dead')
-            pause(5)
             disp('Close redis')
             mrc.redis_cmd('SHUTDOWN NOSAVE');
         end        
