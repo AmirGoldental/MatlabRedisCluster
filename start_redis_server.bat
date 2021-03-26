@@ -26,4 +26,5 @@ if "%1"=="--remove-service" (
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
 echo hostname is: %hostname%
 
-"%~dp0utils\redis-server.exe" "%~dp0redis.conf"
+start "hostname: %hostname%" "%~dp0utils\redis-server.exe" "%~dp0redis.conf"
+exit 
