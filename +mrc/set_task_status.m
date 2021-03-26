@@ -30,19 +30,48 @@ end
 
 task_key = char(task_key);
 status = char(status);
-
 if strcmpi(task_key, 'all')
-    error('not implemented yet')
+    mrc.set_task_status({'all_pre_pending', 'all_pending', ...
+        'all_ongoing', 'all_finished', 'all_failed'}, status)
 elseif strcmpi(task_key, 'all_pre_pending')
-    error('not implemented yet')
+    switch status
+        case 'deleted'            
+            mrc.redis_cmd('DEL pre_pending_tasks');
+        otherwise
+            error('not implemented yet')
+    end
 elseif strcmpi(task_key, 'all_pending')
-    error('not implemented yet')
+    switch status
+        case 'deleted'
+            mrc.redis_cmd('DEL pending_tasks');            
+        otherwise
+            error('not implemented yet')
+    end
 elseif strcmpi(task_key, 'all_ongoing')
-    error('not implemented yet')
+    switch status
+        case 'deleted'
+            mrc.set_worker_status('all', 'restart');
+        otherwise
+            error('not implemented yet')
+    end
 elseif strcmpi(task_key, 'all_finished')
-    error('not implemented yet')
+    switch status
+        case 'deleted'
+            mrc.redis_cmd('DEL finished_tasks');
+        otherwise
+            error('not implemented yet')
+    end
 elseif strcmpi(task_key, 'all_failed')
-    error('not implemented yet')
+    switch status
+        case 'deleted'
+            mrc.redis_cmd('DEL failed_tasks');
+        otherwise
+            error('not implemented yet')
+    end
+end
+
+if ~strncmpi(task_key, 'task:', 5)
+    return
 end
 
 task = get_redis_hash(task_key);
@@ -57,7 +86,7 @@ switch status
             ['LPUSH pending_tasks ' task_key ], ...
             ['HMSET ' task_key ' status pending'], ...
             'EXEC'};
-        if strcmpi(task.status, 'ongoing') && strcmpi(force_flag, 'force')
+        if strcmpi(task.status, 'ongoing') && force_flag
             cmds = [cmds(1:end-1), ...
                 {['SREM available_workers ' task.worker], ...
                 ['HSET ' task.worker ' status restart']}, ...
@@ -74,7 +103,7 @@ switch status
             ['LPUSH finished_tasks ' task_key ], ...
             ['HMSET ' task_key ' finished_on ' str_to_redis_str(datetime) ' status finished'], ...
             'EXEC'};
-        if strcmpi(task.status, 'ongoing') && strcmpi(force_flag, 'force')
+        if strcmpi(task.status, 'ongoing') && force_flag
             cmds = [cmds(1:end-1), ...
                 {['SREM available_workers ' task.worker], ...
                 ['HSET ' task.worker ' status restart']}, ...

@@ -82,9 +82,10 @@
    "mrc.set_task_status": {
       "inputs": [
          {
-            "name": "tas_key",
+            "name": "task_key",
             "kind": "required",
             "type": [
+               "cell",
                "char",
                "choices={'all','all_pre_pending','all_pending','all_ongoing','all_finished','all_failed'}"
             ]
@@ -93,7 +94,7 @@
             "name": "status",
             "kind": "required",
             "type": [
-               "choices={'pending','finished','failed'}"
+               "choices={'pending','finished','failed','deleted'}"
             ]
          },
          {

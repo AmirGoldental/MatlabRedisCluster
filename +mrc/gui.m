@@ -31,17 +31,11 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     function action(action_menu, ~)
         switch action_menu.Text
             case 'Abort all tasks'
-                mrc.redis_cmd('DEL pending_tasks');
-                ongoing_tasks = split(mrc.redis_cmd('LRANGE ongoing_tasks 0 -1'), newline);
-                if isempty(ongoing_tasks{1})
-                    return
-                end
-                mrc.redis_cmd(cellfun(@(task) ['HSET ' char(task.worker) ' status restart'],...
-                    get_redis_hash(ongoing_tasks), 'UniformOutput', false));
+                mrc.set_task_status({'all_pre_pending', 'all_pending', 'all_ongoing'}, 'deleted')
             case 'Clear finished'
-                mrc.redis_cmd('DEL finished_tasks')
+                mrc.set_task_status('all_finished', 'deleted');
             case 'Clear failed'
-                mrc.redis_cmd('DEL failed_tasks')
+                mrc.set_task_status('all_failed', 'deleted');
             case 'Suspend all workers'
                 mrc.set_worker_status('all', 'suspended')
             case 'Activate all workers'
