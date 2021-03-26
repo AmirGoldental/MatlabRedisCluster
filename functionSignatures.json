@@ -76,13 +76,6 @@
             "type": [
                "choices={'active','suspended','restart','dead'}"
             ]
-         },
-         {
-            "name": "wait_flag",
-            "kind": "flag",
-            "type": [
-               "choices={'wait'}"
-            ]
          }
       ]
    },

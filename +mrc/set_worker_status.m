@@ -1,4 +1,4 @@
-function set_worker_status(worker_key, status, varargin)
+function set_worker_status(worker_key, status)
 % set_worker_status('worker:X', 'active'/'suspended'/'dead')
 % set_worker_status({'worker:X','worker:y'}, 'active'/'suspended'/'dead')
 % set_worker_status('all_workers', 'active'/'suspended'/'dead')
@@ -6,20 +6,10 @@ function set_worker_status(worker_key, status, varargin)
 % DOC
 % all possible worker status: active, suspended, restart, dead
 
-if any(strcmpi(varargin, 'wait'))
-    wait_flag = true; % used to wait for worker to die
-else
-    wait_flag = false;
-end
-
 if iscell(worker_key)
     for cell_idx = 1:numel(worker_key)
         if ~isempty(worker_key{cell_idx})
-            if wait_flag
-                mrc.set_worker_status(worker_key{cell_idx}, status, 'wait');
-            else
-                mrc.set_worker_status(worker_key{cell_idx}, status);
-            end
+            mrc.set_worker_status(worker_key{cell_idx}, status);
         end
     end
     return
@@ -32,15 +22,10 @@ if strcmpi(worker_key, 'all')
     worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
     worker_keys(cellfun(@isempty, worker_keys)) = [];
     if numel(worker_keys) == 0
-        disp('All workers are dead');
+        disp('No available workers');
         return
     end
     mrc.set_worker_status(worker_keys, status);
-    if strcmpi(status, 'dead') && wait_flag
-        if wait_for_condition(@() strcmpi(mrc.redis_cmd('SCARD available_workers'), '0'))
-            disp('All workers are dead');
-        end
-    end
     return
 end
 
@@ -60,7 +45,7 @@ switch status
                 ['HSET ' worker_key ' status restart']});
         end
     case 'dead'
-        if ~any(strcmpi(current_status, {'dead'}))
+        if ~strcmpi(current_status, 'dead')
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
                 ['HSET ' worker_key ' status dead']});
         end
