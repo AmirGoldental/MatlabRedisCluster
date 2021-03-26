@@ -20,7 +20,7 @@ end
 
 % get from redis
 SHA = mrc.redis_cmd(['GET SHA_script_store:' script_name]);
-if ~isempty(SHA)
+if ~isempty(SHA) && (mrc.redis_cmd(['script exists ' SHA]) == '1')
     script_SHA = [SHA ' '];
     SHA_script_store(script_name) = script_SHA;
     return
