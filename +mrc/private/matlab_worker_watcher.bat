@@ -67,7 +67,7 @@ if "%res%"=="failed" (
         exit /s
     )
 
-    if "!worker_status!"=="kill" (
+    if "!worker_status!"=="dead" (
         call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         exit /s
     )

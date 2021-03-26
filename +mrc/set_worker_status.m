@@ -60,14 +60,9 @@ switch status
                 ['HSET ' worker_key ' status restart']});
         end
     case 'dead'
-        if ~any(strcmpi(current_status, {'kill', 'dead'}))
+        if ~any(strcmpi(current_status, {'dead'}))
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
-                ['HSET ' worker_key ' status kill']}); % to do: switch to dead
-        end
-        if wait_flag
-            if wait_for_condition(@() strcmpi(get_redis_hash(worker_key, 'status'), 'dead'))
-                disp([worker_key ' is dead']);
-            end
+                ['HSET ' worker_key ' status dead']});
         end
     otherwise
         error([status ' status is not supported for workers']);
