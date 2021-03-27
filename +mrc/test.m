@@ -122,11 +122,13 @@ classdef test < matlab.unittest.TestCase
         end
         
         function test_worker_life_cycle(testCase)
-            workers_count = mrc.redis_cmd('get workers_count');
+            workers_count = str2double(mrc.redis_cmd('SCARD available_workers'));
             mrc.start_worker('wait');
-            assert(~strcmp(workers_count,mrc.redis_cmd('get workers_count')), 'error in start_worker');
+            workers_count_after_start = str2double(mrc.redis_cmd('SCARD available_workers'));
+            testCase.verifyEqual(workers_count_after_start, workers_count+1, 'number of workers is unexpected')
             mrc.set_worker_status('all', 'dead');
-            
+            pause(5)
+            testCase.verifyEqual(mrc.redis_cmd('SCARD available_workers'), '0', 'number of workers is not 0 after kill')
         end
         
     end
@@ -158,12 +160,22 @@ classdef test < matlab.unittest.TestCase
     
     methods(TestClassTeardown)
         function close_redis(testCase)
-            disp('Start teardown of tests')
-            disp('Kill all workers')
-            mrc.set_worker_status('all', 'dead')
             disp('Close redis')
             mrc.redis_cmd('SHUTDOWN NOSAVE');
         end        
     end
     
+    methods(TestMethodTeardown)
+        function kill_all_workers(testCase)
+            tic
+            while mrc.redis_cmd('SCARD available_workers') ~= '0'
+                mrc.set_worker_status('all', 'dead')
+                pause(5)
+                if toc > 30
+                    warning('was unable to kill all workers, trying again')
+                end
+            end
+            mrc.flush_db;
+        end
+    end
 end
