@@ -114,7 +114,7 @@ try
 catch err
     json_err = jsonencode(err);
     json_err = join(split(json_err, ','), ',\n');
-    set_redis_hash(task_key, 'err_msg', str_to_redis_str(json_err))
+    set_redis_hash(task_key, 'err_msg', json_err)
     if strcmp(db_timetag, get_db_timetag())
         mrc.set_task_status(task_key, 'failed');
     end
