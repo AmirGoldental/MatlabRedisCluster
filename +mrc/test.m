@@ -131,6 +131,28 @@ classdef test < matlab.unittest.TestCase
             testCase.verifyEqual(mrc.redis_cmd('SCARD available_workers'), '0', 'number of workers is not 0 after kill')
         end
         
+        function functional_test_1(testCase)
+            mrc.start_worker;
+            mrc.start_worker;
+            testCase.verifyTrue(...
+                wait_for_condition(@() mrc.redis_cmd('SCARD available_workers') == '2'),...
+                'number of workers is not 2')
+            t = mrc.new_task(repmat({'mrc.redis_cmd(''RPUSH test_list task0'')'},3,1));
+            f = mrc.new_task('fail');
+            mrc.new_task('mrc.redis_cmd(''RPUSH test_list taskX'')', 'dependencies', f);
+            mrc.new_task('mrc.redis_cmd(''RPUSH test_list task1'')', 'dependencies', t);
+            expected_test_list = {'task0', 'task0', 'task0', 'task1'};
+            
+            wait_for_condition(@() mrc.redis_cmd('LLEN test_list') == num2str(numel(expected_test_list)));
+            testCase.verifyEqual(mrc.redis_cmd('LRANGE test_list 0 -1'),...
+                strjoin(expected_test_list,newline), 'Something went worng')
+            
+            mrc.set_task_status(f, 'finished');
+            expected_test_list = {'task0', 'task0', 'task0', 'task1', 'taskX'};
+            wait_for_condition(@() mrc.redis_cmd('LLEN test_list') == num2str(numel(expected_test_list)));
+            testCase.verifyEqual(mrc.redis_cmd('LRANGE test_list 0 -1'),...
+                strjoin(expected_test_list,newline), 'Something went worng')
+        end
     end
     
     methods(TestClassSetup)
