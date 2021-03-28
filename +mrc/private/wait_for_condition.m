@@ -13,5 +13,6 @@ while toc < time_out
     pause(retry_delay)
     retry_delay = retry_delay*2;
 end
+bool = false;
 end
 
