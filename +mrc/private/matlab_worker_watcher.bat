@@ -11,8 +11,8 @@ SETLOCAL EnableDelayedExpansion
 set params_path=%1
 set worker_key=%2
 set matlab_pid=%3
-set main_dir==%~dp0%\..\..
-set start_matlab_worker_path=%~dp0%\..\..\start_worker.bat
+set main_dir=%~dp0%..\..
+set start_matlab_worker_path=%~dp0%..\..\start_worker.bat
 set db_timetag=INITIAL_db_timetag
 
 for /f "usebackq" %%i IN (`hostname`) DO SET hostname=%%i
@@ -30,6 +30,8 @@ if "%res%"=="failed" (
 ) else (
     call :logger INFO redis ping ponged
 ) 
+
+call :redis_log watcher initialized
 
 :main_loop
     @timeout %wrapper_loop_wait_seconds% >nul
@@ -53,11 +55,14 @@ if "%res%"=="failed" (
     if "!worker_status!"=="active" (
         if "!matlab_status!"=="off" (
             call :logger INFO matlab crashed    
+            call :redis_log matlab crashed
             call :move_current_task_to_failed !worker_key! "worker died"
             if "%matlab_restart_on_fail%"=="true" (
                 call :send_redis hset !worker_key! status restart
+                call :redis_log change status to restart
             ) else (                
                 call :send_redis hset !worker_key! status dead
+                call :redis_log change status to dead
             )
         )
     )
@@ -66,6 +71,7 @@ if "%res%"=="failed" (
         if "!matlab_status!"=="on" (      
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         ) else (
+            call :redis_log start matlab worker
             set worker_id=%worker_key:worker:=%
             start "%random%_matlab_worker" "%matlab_path%" -sd "%main_dir%" -r "mrc.join_as_worker('!worker_id!')"
             exit /s
@@ -73,7 +79,8 @@ if "%res%"=="failed" (
     )
     
     if "!worker_status!"=="suspended" (
-        if "!matlab_status!"=="on" (      
+        if "!matlab_status!"=="on" (   
+            call :redis_log watcher suspends matlab worker
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         )
     )
@@ -82,6 +89,7 @@ if "%res%"=="failed" (
         if "!matlab_status!"=="on" (      
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         ) else (
+            call :redis_log watcher shutdown
             exit /s
         )
     )
@@ -123,9 +131,14 @@ call :logger DEBUG still alive pid=%2
 call :is_pid_alive %2
 if !res!==on (goto wait_check_pid_alive)
 call :logger DEBUG process dead check move task to failed    
-call :move_current_task_to_failed %1 "worker killed"        
-@REM call :send_redis hset %1 status dead
+call :move_current_task_to_failed %1 "worker killed"   
+call :redis_log matlab killed by watcher
+exit /b
 
+:redis_log
+call :datestr     
+@REM set worker_key=%1
+call :send_redis rpush %worker_key%:log "%res% > %*"
 exit /b
 
 :datestr
