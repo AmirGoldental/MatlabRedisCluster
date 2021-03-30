@@ -1,8 +1,8 @@
 # MatlabRedisCluster
 ### Lightweight Matlab distributed computing based on Redis.  
-![image](https://user-images.githubusercontent.com/50057077/112986862-b7bb5300-916a-11eb-9513-4dda713478d2.png)  
+![image](https://user-images.githubusercontent.com/50057077/112987188-1b458080-916b-11eb-97d9-6fe7942718b4.png)
 
-## Quickstart  
+## Quickstart  
 - On any computer start the `start_mrc_server.bat` file to start the Redis server. Note the hostname, it will be displayed on the cmd window.  
 - Update the hostname in the `worker.conf` file.  
 - Start a worker on any computer that is on the same network as the host using the `start_worker.bat`.
