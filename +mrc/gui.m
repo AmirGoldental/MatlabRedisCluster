@@ -1,5 +1,4 @@
 function gui()
-
 items_per_load = 10;
 colors = struct();
 colors.background = '#eeeeee';
@@ -10,9 +9,16 @@ colors.weak = '#dddddd';
 
 conf = read_conf_file;
 
-fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
-    'NumberTitle', 'off', 'Units', 'normalized', ...
-    'Color', colors.background, 'KeyPressFcn', @fig_key_press);
+persistent fig fig_status buttons command_list context_menus
+if ishandle(fig)
+    figure(fig)
+    refresh();
+    return
+else
+    fig = figure('Name', 'Matlab Redis Cluster', 'MenuBar', 'none', ...
+        'NumberTitle', 'off', 'Units', 'normalized', ...
+        'Color', colors.background, 'KeyPressFcn', @fig_key_press);
+end
 fig.Position = [0.02 0.04 0.95 0.85];
 
 actions_menu= uimenu(fig, 'Text', 'Actions');
@@ -52,7 +58,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
         pause(1)
         refresh();
     end
-gui_status.active_filter_button = 'pending';
+fig_status.active_filter_button = 'pending';
 buttons_num = 0;
     function hndl = new_button(button_string, button_callback)
         button_length = 0.13;
@@ -65,12 +71,12 @@ buttons_num = 0;
             'FontName', 'Consolas', 'FontSize', 12);
         buttons_num = buttons_num + 1;
     end
-filter_buttons.pre_pending = new_button('Pre Pending Tasks', @(~,~) filter_button_callback('pre_pending'));
-filter_buttons.pending = new_button('Pending Tasks', @(~,~) filter_button_callback('pending'));
-filter_buttons.ongoing = new_button('Ongoing Tasks', @(~,~) filter_button_callback('ongoing'));
-filter_buttons.finished = new_button('Finished Tasks', @(~,~) filter_button_callback('finished'));
-filter_buttons.failed = new_button('Failed Tasks', @(~,~) filter_button_callback('failed'));
-filter_buttons.workers = new_button('Workers', @(~,~) filter_button_callback('workers'));
+buttons.pre_pending = new_button('Pre Pending Tasks', @(~,~) filter_button_callback('pre_pending'));
+buttons.pending = new_button('Pending Tasks', @(~,~) filter_button_callback('pending'));
+buttons.ongoing = new_button('Ongoing Tasks', @(~,~) filter_button_callback('ongoing'));
+buttons.finished = new_button('Finished Tasks', @(~,~) filter_button_callback('finished'));
+buttons.failed = new_button('Failed Tasks', @(~,~) filter_button_callback('failed'));
+buttons.workers = new_button('Workers', @(~,~) filter_button_callback('workers'));
 refresh_button = new_button('Refresh', @(~,~) refresh());
 load_more_button_position = refresh_button.Position;
 load_more_button_position(1) = 0.99 - load_more_button_position(3);
@@ -112,22 +118,22 @@ refresh()
 
     function refresh()
         fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
-        category = gui_status.active_filter_button;
+        category = fig_status.active_filter_button;
         command_list.ContextMenu = context_menus.(category);
-        structfun(@(button) set(button, 'BackgroundColor', colors.weak), filter_buttons)
-        structfun(@(button) set(button, 'FontWeight', 'normal'), filter_buttons)
-        filter_buttons.(category).BackgroundColor = colors.strong;
-        filter_buttons.(category).FontWeight = 'Bold';
+        structfun(@(button) set(button, 'BackgroundColor', colors.weak), buttons)
+        structfun(@(button) set(button, 'FontWeight', 'normal'), buttons)
+        buttons.(category).BackgroundColor = colors.strong;
+        buttons.(category).FontWeight = 'Bold';
         command_list.Value = [];
         command_list.String = {};
         
         cluster_status = structfun(@num2str, mrc.get_cluster_status(), 'UniformOutput', false);
-        filter_buttons.pre_pending.String = [cluster_status.num_pre_pending ' Pre-pending Tasks'];
-        filter_buttons.pending.String = [cluster_status.num_pending ' Pending Tasks'];
-        filter_buttons.ongoing.String = [cluster_status.num_ongoing ' Ongoing Tasks'];
-        filter_buttons.finished.String = [cluster_status.num_finished ' Finished Tasks'];
-        filter_buttons.failed.String = [cluster_status.num_failed ' Failed Tasks'];
-        filter_buttons.workers.String = [cluster_status.num_workers ' Workers'];
+        buttons.pre_pending.String = [cluster_status.num_pre_pending ' Pre-pending Tasks'];
+        buttons.pending.String = [cluster_status.num_pending ' Pending Tasks'];
+        buttons.ongoing.String = [cluster_status.num_ongoing ' Ongoing Tasks'];
+        buttons.finished.String = [cluster_status.num_finished ' Finished Tasks'];
+        buttons.failed.String = [cluster_status.num_failed ' Failed Tasks'];
+        buttons.workers.String = [cluster_status.num_workers ' Workers'];
         
         if strcmp(category, 'workers')
             worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
@@ -171,30 +177,33 @@ refresh()
         % get cached after validation
         tasks = mrc.get_tasks(task_ids, 'validate_status', category , 'cache_only');
         tasks = tasks(~cellfun(@isempty, tasks));
-        
-        switch category
-            case 'pre_pending'
-                command_list.String = cellfun(@(task) strcat("[", task.created_on, "] (",...
-                    task.created_by, "): ", task.command), tasks);
-            case 'pending'
-                command_list.String = cellfun(@(task) strcat("[", task.created_on, "] (",...
-                    task.created_by, "): ", task.command), tasks);
-            case 'ongoing'
-                command_list.String = cellfun(@(task) strcat("[", task.started_on, "] (",...
-                    task.created_by, "->", task.worker, "): ", task.command), tasks);
-            case 'finished'
-                command_list.String = cellfun(@(task) strcat("[", task.finished_on, "] (",...
-                    task.created_by, "->", task.worker, "): ", task.command), tasks);
-            case 'failed'
-                command_list.String = cellfun(@(datum) strcat("[",datum.failed_on, "] (",...
-                    datum.created_by, "->", datum.worker, "): ", datum.command), tasks);
-        end
+        command_list.String = cellfun(@task2string, tasks, 'UniformOutput', false);
         command_list.UserData.keys = cellfun(@(task) task.key, tasks, 'UniformOutput', false);
     end
 
+    function res = task2string(task)
+        try
+        switch task.status
+            case 'pre_pending'
+                res = strcat("[", task.created_on, "] (", task.created_by, "): ", task.command);
+            case 'pending'
+                res = strcat("[", task.created_on, "] (", task.created_by, "): ", task.command);
+            case 'ongoing'
+                res = strcat("[", task.started_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
+            case 'finished'
+                res = strcat("[", task.finished_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
+            case 'failed'
+                res = strcat("[", task.failed_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
+        end
+        catch err
+            warning(['Unable to parse task ' err.message])
+            res = '>> error parsing <<';
+        end
+    end
+
     function filter_button_callback(category)
-        if ~strcmpi(gui_status.active_filter_button, category)
-            gui_status.active_filter_button = category;
+        if ~strcmpi(fig_status.active_filter_button, category)
+            fig_status.active_filter_button = category;
         end
         refresh();
     end
