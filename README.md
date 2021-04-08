@@ -35,6 +35,18 @@
    - `user`: The user that started this worker.  
    - `status`: on of "active"/"suspended"/"dead".   
    - Additional attributes: `started_on` (datetime), `current_task` (task key or "None"), last_command (string), `last_ping` (datetime).    
-  
+## API
+* new_task(command, varargin): command is char or cell array of commands. returns the task keys. varargin include:
+   * 'addpath', path2folder (char)
+   * 'fail_policy', 'halt'(default)/'continue'
+   * 'dependencies', task_keys (char/cell array)
+* flush_db(): stop all tasks, clear all history, and restart workers.            
+* get_cluster_status()  
+* join_as_worker()      
+* redis_cmd(command): run redis command on redis server. command can also be cell array. 
+* start_redis_server()
+* start_worker()
+* wait(): stops matlab execution while there are pending tasks.
+* gui:
 ![image](https://user-images.githubusercontent.com/50057077/112982622-59d83c80-9165-11eb-97e1-ed2957179e03.png)
    
