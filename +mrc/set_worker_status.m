@@ -31,23 +31,23 @@ end
 
 current_status = char(mrc.redis_cmd(['HGET ' worker_key ' status']));
 switch status
-    case 'active'
-        if strcmpi(current_status, 'suspended')
-            mrc.redis_cmd(['LPUSH ' char(worker_key) ':activate 1']);
-        end
+%     case 'active'
+%         if strcmpi(current_status, 'suspended')
+%             mrc.redis_cmd(['LPUSH ' char(worker_key) ':activate 1']);
+%         end
     case 'suspended'
         if strcmpi(current_status, 'active')
-            mrc.redis_cmd(['HSET ' worker_key ' status suspended']);
+            mrc.redis_cmd(['LPUSH ' worker_key ':watcher_cmds suspend']);
         end
     case 'restart'        
         if any(strcmpi(current_status, {'active','suspended'}))
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
-                ['HSET ' worker_key ' status restart']});
+                ['LPUSH ' worker_key ':watcher_cmds restart']});
         end
     case 'dead'
         if ~strcmpi(current_status, 'dead')
             mrc.redis_cmd({['SREM available_workers ' worker_key], ...
-                ['HSET ' worker_key ' status dead']});
+                ['LPUSH ' worker_key ':watcher_cmds kill']});
         end
     otherwise
         error([status ' status is not supported for workers']);

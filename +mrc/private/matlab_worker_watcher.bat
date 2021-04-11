@@ -34,7 +34,7 @@ if "%res%"=="failed" (
 call :redis_log watcher initialized
 
 :main_loop
-    @timeout %wrapper_loop_wait_seconds% >nul
+    @REM @timeout %wrapper_loop_wait_seconds% >nul
 
     :: check if matlab is alive
     call :is_pid_alive !matlab_pid!
@@ -48,8 +48,10 @@ call :redis_log watcher initialized
         goto main_loop
     )
     set worker_status=!res!
+    call :send_redis blpop !worker_key!:watcher_cmds %wrapper_loop_wait_seconds%
+    set watcher_cmd=!res!
 
-    call :logger VERBOSE matlab_status:!matlab_status! redis_status:!worker_status!
+    call :logger VERBOSE matlab_status:!matlab_status! redis_status:!worker_status! watcher_cmd:!watcher_cmd!
 
     :: main logic
     if "!worker_status!"=="active" (
@@ -57,41 +59,41 @@ call :redis_log watcher initialized
             call :logger INFO matlab crashed    
             call :redis_log matlab crashed
             call :move_current_task_to_failed !worker_key! "worker died"
+            call :send_redis hset !worker_key! status dead
+            call :redis_log change status to dead
             if "%matlab_restart_on_fail%"=="true" (
-                call :send_redis hset !worker_key! status restart
-                call :redis_log change status to restart
-            ) else (                
-                call :send_redis hset !worker_key! status dead
-                call :redis_log change status to dead
+                set watcher_cmd=restart
+                call :redis_log change watcher_cmd to restart
             )
         )
     )
     
-    if "!worker_status!"=="restart" (
+    if "!watcher_cmd!"=="restart" (
         if "!matlab_status!"=="on" (      
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
-        ) else (
-            call :redis_log start matlab worker
-            set worker_id=%worker_key:worker:=%
-            start "%random%_matlab_worker" "%matlab_path%" -sd "%main_dir%" -r "mrc.join_as_worker('!worker_id!')"
-            exit /s
         )
+        call :send_redis hset !worker_key! status dead
+        call :redis_log start matlab worker
+        set worker_id=%worker_key:worker:=%
+        start "%random%_matlab_worker" "%matlab_path%" -sd "%main_dir%" -r "mrc.join_as_worker('!worker_id!')"
+        exit /s
     )
     
-    if "!worker_status!"=="suspended" (
+    if "!watcher_cmd!"=="suspend" (
         if "!matlab_status!"=="on" (   
             call :redis_log watcher suspends matlab worker
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
         )
+        call :send_redis hset !worker_key! status suspended
     )
     
-    if "!worker_status!"=="dead" (
+    if "!watcher_cmd!"=="kill" (
         if "!matlab_status!"=="on" (      
             call :kill_wait_and_deal_with_current_task !worker_key! !matlab_pid!
-        ) else (
-            call :redis_log watcher shutdown
-            exit /s
         )
+        call :send_redis hset !worker_key! status dead
+        call :redis_log watcher shutdown
+        exit /s
     )
 
 goto main_loop
