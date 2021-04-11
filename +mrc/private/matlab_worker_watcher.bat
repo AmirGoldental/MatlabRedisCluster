@@ -144,9 +144,13 @@ call :send_redis rpush %worker_key%:log "%res% > %*"
 exit /b
 
 :datestr
-set day-num=%date:~0,2%
-set year-num=%date:~6,4%
-set month-num=%date:~3,2%
+for /f "delims=" %%a in ('wmic OS Get localdatetime  ^| find "+"') do set datevar=%%a
+set year-num=%datevar:~0,4%
+set month-num=%datevar:~4,2%
+set day-num=%datevar:~6,2%
+set hours=%datevar:~8,2%
+set minutes=%datevar:~10,2%
+set seconds=%datevar:~12,2%
 if %month-num%==01 set mo-name=Jan
 if %month-num%==02 set mo-name=Feb
 if %month-num%==03 set mo-name=Mar
@@ -159,7 +163,7 @@ if %month-num%==09 set mo-name=Sep
 if %month-num%==10 set mo-name=Oct
 if %month-num%==11 set mo-name=Nov
 if %month-num%==12 set mo-name=Dec
-set res=%day-num%-%mo-name%-%year-num% %time%
+set res=%day-num%-%mo-name%-%year-num% %hours%:%minutes%:%seconds%
 exit /b
 
 :move_current_task_to_failed 
