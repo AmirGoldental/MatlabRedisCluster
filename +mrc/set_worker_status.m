@@ -31,10 +31,11 @@ end
 
 current_status = char(mrc.redis_cmd(['HGET ' worker_key ' status']));
 switch status
-%     case 'active'
-%         if strcmpi(current_status, 'suspended')
-%             mrc.redis_cmd(['LPUSH ' char(worker_key) ':activate 1']);
-%         end
+    case 'active'
+        if strcmpi(current_status, 'suspended')
+            mrc.redis_cmd({['SREM available_workers ' worker_key], ...
+                ['LPUSH ' worker_key ':watcher_cmds wakeup']});
+        end
     case 'suspended'
         if strcmpi(current_status, 'active')
             mrc.redis_cmd(['LPUSH ' worker_key ':watcher_cmds suspend']);

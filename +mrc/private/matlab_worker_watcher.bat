@@ -79,6 +79,17 @@ call :redis_log watcher initialized
         exit /s
     )
     
+    if "!watcher_cmd!"=="wakeup" (
+        if "!matlab_status!"=="on" (     
+            call :logger WARNING received wakeup but matlab was already active 
+        ) else (
+            call :redis_log start matlab worker
+            set worker_id=%worker_key:worker:=%
+            start "%random%_matlab_worker" "%matlab_path%" -sd "%main_dir%" -r "mrc.join_as_worker('!worker_id!')"
+            exit /s
+        )
+    )
+    
     if "!watcher_cmd!"=="suspend" (
         if "!matlab_status!"=="on" (   
             call :redis_log watcher suspends matlab worker
