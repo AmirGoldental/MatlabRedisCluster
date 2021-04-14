@@ -1,5 +1,6 @@
 function gui()
-items_per_load = 10;
+items_per_load = 50;
+max_items_to_show = 500;
 colors = struct();
 colors.background = '#eeeeee';
 colors.list_background = '#cccccc';
@@ -65,7 +66,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
 fig_status.active_filter_button = 'pending';
 buttons_num = 0;
     function hndl = new_button(button_string, button_callback)
-        button_length = 0.13;
+        button_length = 0.12;
         button_height = 0.04;
         button_y_ofset = 0.95;
         hndl = uicontrol(fig, 'Style', 'pushbutton', ...
@@ -81,10 +82,18 @@ buttons.ongoing = new_button('Ongoing Tasks', @(~,~) filter_button_callback('ong
 buttons.finished = new_button('Finished Tasks', @(~,~) filter_button_callback('finished'));
 buttons.failed = new_button('Failed Tasks', @(~,~) filter_button_callback('failed'));
 buttons.workers = new_button('Workers', @(~,~) filter_button_callback('workers'));
+
 refresh_button = new_button('Refresh', @(~,~) refresh());
-load_more_button_position = refresh_button.Position;
-load_more_button_position(1) = 0.99 - load_more_button_position(3);
-refresh_button.Position = load_more_button_position;
+refresh_button_position = refresh_button.Position;
+refresh_button_position(3) = 0.75*refresh_button_position(3);
+refresh_button_position(1) = 0.99 - refresh_button_position(3);
+refresh_button.Position = refresh_button_position;
+
+load_more_button = new_button('Load More', @(~,~) load_tasks());
+load_more_button_position = load_more_button.Position;
+load_more_button_position(3) = 0.75*load_more_button_position(3);
+load_more_button_position(1) = refresh_button_position(1) - load_more_button_position(3);
+load_more_button.Position = load_more_button_position;
 
 command_list = uicontrol(fig, 'Style', 'listbox', 'String', {}, ...
     'FontName', 'Consolas', 'FontSize', 16, 'Max', 2,...
@@ -157,52 +166,41 @@ refresh()
                     if (now - datenum(workers{cell_idx}.last_ping))*24*60 > 5
                         workers{cell_idx}.status = [workers{cell_idx}.status ', not responding for ' num2str(round((now - datenum(workers{cell_idx}.last_ping))*24*60)) ' minutes'];
                     end
+                    if ~strcmpi(workers{cell_idx}.current_task, 'None')
+                        workers{cell_idx}.status = [workers{cell_idx}.status  '. "' workers{cell_idx}.last_command '"'];
+                    end
+                    
                 end
             end
-            command_list.String = cellfun(@(worker) strcat("[", worker.key, "] (", ...
-                worker.computer, "): ", worker.status), workers, 'UniformOutput', false);
-            command_list.UserData.keys = cellfun(@(worker) worker.key, workers, 'UniformOutput', false);
-            return
+            workers_strings = cellfun(@(worker) ['[' worker.computer '/' worker.key '] ' ...
+                worker.status], workers, 'UniformOutput', false);
+            [workers_strings, order] = sort(workers_strings);
+            command_list.String = workers_strings;
+            command_list.UserData.keys = cellfun(@(worker) worker.key, workers(order), 'UniformOutput', false);
+            load_more_button.Visible = 'off';
+        else
+            tasks = split(mrc.redis_cmd(['LRANGE ' category '_tasks 0 ' num2str(max_items_to_show)]), newline);
+            if numel(tasks) == 1 && isempty(tasks{1})
+                tasks = [];
+            end
+            command_list.UserData.keys = tasks;
+            command_list.String = {};
+            load_tasks()
         end
         
-        task_ids = cellfun(@(task_key) str2double(task_key(6:end)), ...
-            split(mrc.redis_cmd(['LRANGE ' category '_tasks 0 500']), newline));
-        if isnan(task_ids)
-            command_list.String = '';
-            command_list.UserData.keys = [];
-            return
-        end
-        
-        % not downloaded yet
-        tasks2download = task_ids(cellfun(@isempty, ...
-            mrc.get_tasks(task_ids, 'validate_status', category, 'cache_only')));
-        % download
-        tasks2download = tasks2download(1:min(items_per_load, end));
-        mrc.get_tasks(tasks2download, 'network_only');
-        % get cached after validation
-        tasks = mrc.get_tasks(task_ids, 'validate_status', category , 'cache_only');
-        tasks = tasks(~cellfun(@isempty, tasks));
-        command_list.String = cellfun(@task2string, tasks, 'UniformOutput', false);
-        command_list.UserData.keys = cellfun(@(task) task.key, tasks, 'UniformOutput', false);
     end
 
-    function res = task2string(task)
-        try
-        switch task.status
-            case 'pre_pending'
-                res = strcat("[", task.created_on, "] (", task.created_by, "): ", task.command);
-            case 'pending'
-                res = strcat("[", task.created_on, "] (", task.created_by, "): ", task.command);
-            case 'ongoing'
-                res = strcat("[", task.started_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
-            case 'finished'
-                res = strcat("[", task.finished_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
-            case 'failed'
-                res = strcat("[", task.failed_on, "] (", task.created_by, "->", task.worker, "): ", task.command);
+    function load_tasks()
+        loaded = numel(command_list.String);
+        keys_to_load = command_list.UserData.keys((loaded+1):min(loaded+items_per_load, end));
+        if ~isempty(keys_to_load)
+            command_list.String = [command_list.String; mrc.redis_cmd(cellfun(@(task) ['HGET ' task ' str'], keys_to_load, 'UniformOutput', false))];
+            command_list.ListboxTop = loaded+1;
         end
-        catch err
-            warning(['Unable to parse task ' err.message])
-            res = '>> error parsing <<';
+        if numel(command_list.String) == numel(command_list.UserData.keys)
+            load_more_button.Visible = 'off';
+        else
+            load_more_button.Visible = 'on';
         end
     end
 

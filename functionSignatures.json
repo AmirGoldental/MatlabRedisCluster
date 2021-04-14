@@ -128,30 +128,5 @@
             ]
          }
       ]
-   },
-   "mrc.get_tasks": {
-      "inputs": [
-         {
-            "name": "task_ids",
-            "kind": "required",
-            "type": [
-               "vector"
-            ]
-         },
-         {
-            "name": "validate_status",
-            "kind": "namevalue",
-            "type": [
-               "choices={'pre_pending','pending','ongoing','finished','failed'}"
-            ]
-         },
-         {
-            "name": "caching_strategy",
-            "kind": "flag",
-            "type": [
-               "choices={'network_only','cache_first','cache_only'}"
-            ]
-         }
-      ]
    }
 }
