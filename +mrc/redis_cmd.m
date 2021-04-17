@@ -1,4 +1,56 @@
 function [output, redis_cmd_prefix] = redis_cmd(command, varargin)
+redis_connection = get_redis_connection();
+if iscell(command)
+    output = cellfun(@mrc.redis_cmd, command, 'UniformOutput', false);
+    return
+end
+
+% command string to cells:
+cells = split(char(command), ' ');
+cells(cellfun(@isempty, cells)) = [];
+cell_idx = 1;
+cmd_cells = {};
+while cell_idx <= numel(cells)
+    cell_length = 1;
+    if cells{cell_idx}(1) == '"'
+        cells{cell_idx}(1) = [];
+        while cells{cell_idx+cell_length-1}(end) ~= '"'
+            cell_length = cell_length + 1;
+        end
+        cells{cell_idx+cell_length-1}(end) = [];
+    end
+    cmd_cells = [cmd_cells, {strjoin(cells(cell_idx:(cell_idx+cell_length-1)))}];
+    cell_idx = cell_idx + cell_length;
+end
+try
+    output = redis_connection.cmd(cmd_cells);
+catch err
+    if strcmp(err.identifier, 'MATLAB:networklib:tcpclient:writeFailed')
+        warning('connection to redis failed, reconecting')
+        try
+            redis_connection = get_redis_connection('no_cache');
+            output = redis_connection.cmd(cmd_cells);
+        catch err
+            error(err)
+        end
+    end
+end
+if iscell(output)
+    output = strjoin(output, newline);
+end
+if strncmp(output, 'NOAUTH', 6)
+    warning('connection to redis failed (NOAUTH), reconecting')
+    try
+        redis_connection = get_redis_connection('no_cache');
+        output = redis_connection.cmd(cmd_cells);
+        if iscell(output)
+            output = strjoin(output, newline);
+        end
+    catch err
+        error(err)
+    end
+end
+return
 persistent last_redis_cmd
 min_interval_to_use_timeout = 10*60; % seconds
 default_timeout = 3;
@@ -6,7 +58,7 @@ if isempty(last_redis_cmd)
     last_redis_cmd = 0;
 end
 if ~any(strcmpi('timeout', varargin)) && (now - last_redis_cmd) > min_interval_to_use_timeout / (60*60*24)
-   varargin = [varargin  {'timeout', default_timeout}];
+    varargin = [varargin  {'timeout', default_timeout}];
 end
 
 strings_in_varargin = cellfun(@(cell) isstring(cell), varargin);
@@ -25,7 +77,7 @@ else
     assert(length(redis_cli_path) == 1, 'Could not find redis-cli.exe');
     redis_cli_path = fullfile(redis_cli_path.folder, redis_cli_path.name);
     killtimeout_path = fullfile(fileparts(redis_cli_path), 'unix_timeout.bat');
-
+    
     redis_cmd_prefix = ['"' redis_cli_path '" -h ' conf.redis_hostname ' -p '...
         conf.redis_port ' -a ' conf.redis_password ' -n ' conf.redis_db ' '];
     
@@ -38,7 +90,7 @@ end
 if ~iscell(command)
     command = {command};
     unpack_single_output = true;
-else 
+else
     unpack_single_output = false;
 end
 

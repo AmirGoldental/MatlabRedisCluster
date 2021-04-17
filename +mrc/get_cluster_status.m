@@ -23,6 +23,10 @@ cluster_status.uptime = redis_uptime;
 end
 
 function output = redis_str2double(input)
+    if isempty(input)
+        output = 0;
+        return
+    end
     input = strip(input);
     if isempty(input)
         output = 0;
