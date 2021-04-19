@@ -141,17 +141,17 @@ classdef test_class < matlab.unittest.TestCase
             mrc.set_task_status(f, 'finished');
             expected_test_list = {'task0', 'task0', 'task0', 'task1', 'taskX'};
             wait_for_condition(@() testCase.redis.llen('test_list') == num2str(numel(expected_test_list)));
-            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list')), 'Something went worng')
+            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
         end
         function functional_DAG_test_2(testCase)
             t1 = mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task0'')'},3,1));
             mrc.new_task('fail');
-            expected_test_list = repmat({'task0'},3,1);
+            expected_test_list = repmat({'task0'},1,3);
             t2 = mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task1'')'},3,1), 'dependencies', t1);
-            expected_test_list = [expected_test_list; repmat({'task1'},3,1)];
+            expected_test_list = [expected_test_list, repmat({'task1'},1,3)];
             mrc.new_task('fail');
             mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task2'')'},3,1), 'dependencies', [t1;t2]);
-            expected_test_list = [expected_test_list; repmat({'task2'},3,1)];
+            expected_test_list = [expected_test_list, repmat({'task2'},1,3)];
             mrc.new_task('fail');            
             mrc.start_worker;
             mrc.start_worker;
@@ -160,7 +160,7 @@ classdef test_class < matlab.unittest.TestCase
                 'number of workers is not 2')
             
             wait_for_condition(@() testCase.redis.llen('test_list') == num2str(numel(expected_test_list)));
-            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list')), 'Something went worng')
+            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
         end
     end
     
@@ -201,7 +201,7 @@ classdef test_class < matlab.unittest.TestCase
     methods(TestMethodTeardown)
         function restart_cluster(testCase)
             mrc.set_worker_status('all', 'dead')
-            pause(10)
+            pause(2)
             mrc.flush_db;
         end
     end
