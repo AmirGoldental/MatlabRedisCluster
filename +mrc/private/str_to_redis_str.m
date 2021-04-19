@@ -5,6 +5,6 @@ end
 str = char(str);
 str(str == char(13)) = ' ';
 str(str == newline) = ' ';
-str = ['"' str '"'];
+% str = ['"' str '"'];
 
 end

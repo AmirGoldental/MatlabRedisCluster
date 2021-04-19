@@ -24,17 +24,19 @@ if isempty(matlab_structs)
    return 
 end
 
-redis_cmds = cellfun(@(redis_key, matlab_struct) ...
-    matlab_struct_to_redis_cmd(redis_key, matlab_struct), redis_keys, matlab_structs, ...
-    'UniformOutput', false);
-mrc.redis_cmd(redis_cmds);
+redis = get_redis_connection;
+redis.multi;
+for ind = 1:length(redis_keys)
+    redis_set_matlab_struct(redis, redis_keys{ind}, matlab_structs{ind});
+end
+redis.exec;
 end
 
 
-function redis_cmd = matlab_struct_to_redis_cmd(redis_key, matlab_struct)
-hash_str = [];
+function redis_set_matlab_struct(redis, redis_key, matlab_struct)
+args = {};
 for field = fieldnames(matlab_struct)'
-    hash_str = [hash_str ' ' field{1} ' ' str_to_redis_str(matlab_struct.(field{1}))];
+    args = [args, field, {str_to_redis_str(matlab_struct.(field{1}))}];
 end
-redis_cmd = ['HMSET ' redis_key ' ' hash_str];
+redis.hmset(redis_key, args{:});
 end

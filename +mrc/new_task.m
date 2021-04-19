@@ -40,16 +40,15 @@ if any(strcmpi('dependencies', char_varargin))
 else
     dependencies = '';
 end
+redis = get_redis_connection('no_cache');
 add_task_script_SHA = script_SHA('add_task');
-redis_add_task = @(task) ['EVALSHA ' add_task_script_SHA '5' ...
-    ' ' str_to_redis_str(task.command) ...
-    ' ' str_to_redis_str(task.created_by) ...
-    ' ' str_to_redis_str(task.created_on) ...
-    ' ' str_to_redis_str(task.path2add) ...
-    ' ' str_to_redis_str(task.fail_policy) ...
-    ' ' dependencies];
-cmds = cellfun(redis_add_task, tasks, 'UniformOutput', false);
-task_keys = mrc.redis_cmd(cmds);
+redis.multi;
+for ind = 1:numel(tasks)
+	redis.evalsha(add_task_script_SHA, '5', str_to_redis_str(task.command), ...
+        str_to_redis_str(task.created_by), str_to_redis_str(task.created_on), ...
+    	str_to_redis_str(task.path2add), str_to_redis_str(task.fail_policy), dependencies);
+end
+task_keys = redis.exec;
 
 for task_idx = 1:numel(tasks)
     tasks{task_idx}.key = task_keys{task_idx};
@@ -64,4 +63,5 @@ if length(tasks)==1
 end
 
 end
+
 

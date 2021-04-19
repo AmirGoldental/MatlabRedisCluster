@@ -12,7 +12,7 @@ conf = read_conf_file;
 
 persistent fig fig_status buttons command_list context_menus
 if ishandle(fig)
-    figure(fig)
+    figure(fig);
     refresh();
     return
 else
@@ -40,17 +40,17 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
     function action(action_menu, ~)
         switch action_menu.Text
             case 'Abort all tasks'
-                mrc.set_task_status({'all_pre_pending', 'all_pending', 'all_ongoing'}, 'deleted')
+                mrc.set_task_status({'all_pre_pending', 'all_pending', 'all_ongoing'}, 'deleted');
             case 'Clear finished'
                 mrc.set_task_status('all_finished', 'deleted');
             case 'Clear failed'
                 mrc.set_task_status('all_failed', 'deleted');
             case 'Suspend all workers'
-                mrc.set_worker_status('all', 'suspended')
+                mrc.set_worker_status('all', 'suspended');
             case 'Activate all workers'
-                mrc.set_worker_status('all', 'active')
+                mrc.set_worker_status('all', 'active');
             case 'Restart all workers'
-                mrc.set_worker_status('all', 'restart')
+                mrc.set_worker_status('all', 'restart');
             case 'Restart Cluster'
                 answer = questdlg('Are you sure you want to restart the cluster?', ...
                     'Restart cluster', ...
@@ -60,7 +60,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
                     mrc.flush_db;
                 end
         end
-        pause(1)
+        pause(1);
         refresh();
     end
 fig_status.active_filter_button = 'pending';
@@ -131,11 +131,12 @@ uimenu(context_menus.workers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) set_s
 refresh()
 
     function refresh()
+        redis = get_redis_connection('no_cache');
         fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
         category = fig_status.active_filter_button;
         command_list.ContextMenu = context_menus.(category);
-        structfun(@(button) set(button, 'BackgroundColor', colors.weak), buttons)
-        structfun(@(button) set(button, 'FontWeight', 'normal'), buttons)
+        structfun(@(button) set(button, 'BackgroundColor', colors.weak), buttons);
+        structfun(@(button) set(button, 'FontWeight', 'normal'), buttons);
         buttons.(category).BackgroundColor = colors.strong;
         buttons.(category).FontWeight = 'Bold';
         command_list.Value = [];
@@ -150,7 +151,7 @@ refresh()
         buttons.workers.String = [cluster_status.num_workers ' Workers'];
         
         if strcmp(category, 'workers')
-            worker_keys = split(strip(mrc.redis_cmd('SMEMBERS available_workers')));
+            worker_keys = redis.smembers('available_workers');
             worker_keys(cellfun(@isempty, worker_keys)) = [];
             if numel(worker_keys) == 0
                 command_list.String = '';
@@ -179,13 +180,13 @@ refresh()
             command_list.UserData.keys = cellfun(@(worker) worker.key, workers(order), 'UniformOutput', false);
             load_more_button.Visible = 'off';
         else
-            tasks = split(mrc.redis_cmd(['LRANGE ' category '_tasks 0 ' num2str(max_items_to_show)]), newline);
+            tasks = redis.lrange([category '_tasks'], '0', max_items_to_show);
             if numel(tasks) == 1 && isempty(tasks{1})
                 tasks = [];
             end
             command_list.UserData.keys = tasks;
             command_list.String = {};
-            load_tasks()
+            load_tasks();
         end
         
     end
@@ -194,7 +195,7 @@ refresh()
         loaded = numel(command_list.String);
         keys_to_load = command_list.UserData.keys((loaded+1):min(loaded+items_per_load, end));
         if ~isempty(keys_to_load)
-            command_list.String = [command_list.String; mrc.redis_cmd(cellfun(@(task) ['HGET ' task ' str'], keys_to_load, 'UniformOutput', false))];
+            command_list.String = [command_list.String; get_redis_hash(keys_to_load, 'str')'];
             command_list.ListboxTop = loaded+1;
         end
         if numel(command_list.String) == numel(command_list.UserData.keys)
@@ -245,18 +246,18 @@ refresh()
         end
         if strncmp(key, 'task', 4) % task
             if any(strcmpi(key_struct.status, {'failed', 'finished'}))
-                new_key_button('Retry', @(~,~) set_selected_tasks_status('pending', key))
-                new_key_button('Retry on this machine', @(~,~) retry_task_on_this_machine(key_struct))
+                new_key_button('Retry', @(~,~) set_selected_tasks_status('pending', key));
+                new_key_button('Retry on this machine', @(~,~) retry_task_on_this_machine(key_struct));
                 
                 log_file_full_path = fullfile(conf.log_path, strrep(['DB_' get_db_timetag() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
                 if exist(log_file_full_path, 'file')
-                    new_key_button('Show Log', @(~,~) set(edit_widget, 'String', textread(log_file_full_path, '%[^\n]')))
+                    new_key_button('Show Log', @(~,~) set(edit_widget, 'String', textread(log_file_full_path, '%[^\n]')));
                 end
                 if strcmpi(key_struct.status, 'failed')
-                    new_key_button('Mark as finishd',  @(~,~) set_selected_tasks_status('finished', key))
+                    new_key_button('Mark as finishd',  @(~,~) set_selected_tasks_status('finished', key));
                 end
             elseif strcmpi(key_struct.status, 'pre_pending')
-                new_key_button('Force Start',  @(~,~) set_selected_tasks_status('pending', key))
+                new_key_button('Force Start',  @(~,~) set_selected_tasks_status('pending', key));
             end
         end
         drawnow
@@ -264,7 +265,7 @@ refresh()
 
     function listbox_callback()
         if strcmp(get(gcf,'selectiontype'),'open')
-            details()
+            details();
         end
     end
 
@@ -274,13 +275,13 @@ refresh()
         else
             keys = command_list.UserData.keys(command_list.Value);
         end
-        mrc.set_task_status(keys, status, 'force')
+        mrc.set_task_status(keys, status, 'force');
         refresh;
     end
 
     function set_selected_workers_status(status)
         keys = command_list.UserData.keys(command_list.Value);
-        mrc.set_worker_status(keys, status)
+        mrc.set_worker_status(keys, status);
         refresh;
     end
 
