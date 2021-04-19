@@ -13,20 +13,20 @@ if numel(redis_keys) == 1 && isempty(redis_keys{1})
     redis_structs = struct();
     return
 end
-redis = get_redis_connection;
+
 if ~exist('field_name', 'var')
-    redis.multi;
+    redis().multi;
     for ind = 1:length(redis_keys)
-       redis.hgetall(redis_keys{ind}); 
+       redis().hgetall(redis_keys{ind}); 
     end
-    redis_outputs = redis.exec;
+    redis_outputs = redis().exec;
     redis_structs = cellfun(@(redis_output) redis_output_to_struct(redis_output), redis_outputs, 'UniformOutput', false);
 else
-    redis.multi;
+    redis().multi;
     for ind = 1:length(redis_keys)
-       redis.hget(redis_keys{ind}, field_name); 
+       redis().hget(redis_keys{ind}, field_name); 
     end
-    redis_structs = redis.exec;
+    redis_structs = redis().exec;
 end
 
 if unpack_single_output

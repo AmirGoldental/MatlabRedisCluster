@@ -19,9 +19,8 @@ if SHA_script_store.isKey(script_name)
 end
 
 % get from redis
-redis = get_redis_connection;
-SHA = redis.get(['SHA_script_store:' script_name]);
-if ~isempty(SHA) && strcmp(redis.script('exists', SHA), '1')
+SHA = redis().get(['SHA_script_store:' script_name]);
+if ~isempty(SHA) && strcmp(redis().script('exists', SHA), '1')
     SHA_script_store(script_name) = SHA;
     return
 end
@@ -34,8 +33,8 @@ end
 fid = fopen(lua_path);
 lua_script = fread(fid);
 fclose(fid);
-SHA = redis.script('LOAD', str_to_redis_str(char(lua_script')));
+SHA = redis().script('LOAD', str_to_redis_str(char(lua_script')));
 SHA_script_store(script_name) = SHA;
-redis.set(['SHA_script_store:' script_name], SHA);
+redis().set(['SHA_script_store:' script_name], SHA);
 end
 

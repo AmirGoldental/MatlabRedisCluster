@@ -11,20 +11,20 @@ classdef test_class < matlab.unittest.TestCase
         
     methods(Test)        
         function test_get_db_timetag_and_flush_db(testCase)    
-			testCase.redis.set('db_timetag', 'hello');
+			redis().set('db_timetag', 'hello');
 			tag = get_db_timetag;
-			testCase.redis.set('tmp', 'a');
+			redis().set('tmp', 'a');
 			mrc.flush_db;
 			new_tag = get_db_timetag;			
 			assert(~strcmpi(new_tag, tag), 'get_db_timetag was not changed after db reset');
-			assert(~strcmpi(testCase.redis.get('tmp'), 'a'), 'data stays after db flush');
+			assert(~strcmpi(redis().get('tmp'), 'a'), 'data stays after db flush');
         end
         
         function test_get_redis_hash(testCase)  
             output = get_redis_hash({});
             assert(isempty(output), 'get_redis_hash empty input did not result in empty output')
-            testCase.redis.hmset('test_hash', 'field1', 'value1', 'field2', 'value 2', 'field3_numeric', '0');
-            testCase.redis.hmset('test_hash2', 'field1', 'value3', 'field2_numeric', '1');
+            redis().hmset('test_hash', 'field1', 'value1', 'field2', 'value 2', 'field3_numeric', '0');
+            redis().hmset('test_hash2', 'field1', 'value3', 'field2_numeric', '1');
             output = get_redis_hash('test_hash');
             assert(...
                 strcmpi(output.field1, 'value1') && ...
@@ -84,8 +84,8 @@ classdef test_class < matlab.unittest.TestCase
                 'get_redis_hash wrong result of get field');  
             assert(strcmpi(values{2}, 'value3'), ...
                 'get_redis_hash wrong result of get field'); 
-            testCase.redis.del('test_hash');
-            testCase.redis.del('test_hash2');
+            redis().del('test_hash');
+            redis().del('test_hash2');
         end
 
         function test_set_redis_hash(testCase)  
@@ -114,53 +114,53 @@ classdef test_class < matlab.unittest.TestCase
         end
         
         function test_worker_life_cycle(testCase)
-            workers_count = str2double(testCase.redis.scard('available_workers'));
+            workers_count = str2double(redis().scard('available_workers'));
             mrc.start_worker('wait');
-            workers_count_after_start = str2double(testCase.redis.scard('available_workers'));
+            workers_count_after_start = str2double(redis().scard('available_workers'));
             testCase.verifyEqual(workers_count_after_start, workers_count+1, 'number of workers is unexpected')
             mrc.set_worker_status('all', 'dead');
             pause(5)
-            testCase.verifyEqual(testCase.redis.scard('available_workers'), '0', 'number of workers is not 0 after kill')
+            testCase.verifyEqual(redis().scard('available_workers'), '0', 'number of workers is not 0 after kill')
         end
         
         function functional_DAG_test_1(testCase)
             mrc.start_worker;
             mrc.start_worker;
             testCase.verifyTrue(...
-                wait_for_condition(@() testCase.redis.scard('available_workers') == '2'),...
+                wait_for_condition(@() redis().scard('available_workers') == '2'),...
                 'number of workers is not 2')
-            t = mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task0'')'},3,1));
+            t = mrc.new_task(repmat({'redis().rpush(''test_list'', ''task0'')'},3,1));
             f = mrc.new_task('fail');
-            mrc.new_task('get_redis_connection().rpush(''test_list'', ''taskX'')', 'dependencies', f);
-            mrc.new_task('get_redis_connection().rpush(''test_list'', ''task1'')', 'dependencies', t);
+            mrc.new_task('redis().rpush(''test_list'', ''taskX'')', 'dependencies', f);
+            mrc.new_task('redis().rpush(''test_list'', ''task1'')', 'dependencies', t);
             expected_test_list = {'task0', 'task0', 'task0', 'task1'};
             
-            wait_for_condition(@() testCase.redis.llen('test_list') == num2str(numel(expected_test_list)));
-            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
+            wait_for_condition(@() redis().llen('test_list') == num2str(numel(expected_test_list)));
+            testCase.verifyTrue(all(strcmpi(redis().lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
             
             mrc.set_task_status(f, 'finished');
             expected_test_list = {'task0', 'task0', 'task0', 'task1', 'taskX'};
-            wait_for_condition(@() testCase.redis.llen('test_list') == num2str(numel(expected_test_list)));
-            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
+            wait_for_condition(@() redis().llen('test_list') == num2str(numel(expected_test_list)));
+            testCase.verifyTrue(all(strcmpi(redis().lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
         end
         function functional_DAG_test_2(testCase)
-            t1 = mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task0'')'},3,1));
+            t1 = mrc.new_task(repmat({'redis().rpush(''test_list'', ''task0'')'},3,1));
             mrc.new_task('fail');
             expected_test_list = repmat({'task0'},1,3);
-            t2 = mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task1'')'},3,1), 'dependencies', t1);
+            t2 = mrc.new_task(repmat({'redis().rpush(''test_list'', ''task1'')'},3,1), 'dependencies', t1);
             expected_test_list = [expected_test_list, repmat({'task1'},1,3)];
             mrc.new_task('fail');
-            mrc.new_task(repmat({'get_redis_connection().rpush(''test_list'', ''task2'')'},3,1), 'dependencies', [t1;t2]);
+            mrc.new_task(repmat({'redis().rpush(''test_list'', ''task2'')'},3,1), 'dependencies', [t1;t2]);
             expected_test_list = [expected_test_list, repmat({'task2'},1,3)];
             mrc.new_task('fail');            
             mrc.start_worker;
             mrc.start_worker;
             testCase.verifyTrue(...
-                wait_for_condition(@() testCase.redis.scard('available_workers') == '2'),...
+                wait_for_condition(@() redis().scard('available_workers') == '2'),...
                 'number of workers is not 2')
             
-            wait_for_condition(@() testCase.redis.llen('test_list') == num2str(numel(expected_test_list)));
-            testCase.verifyTrue(all(strcmpi(testCase.redis.lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
+            wait_for_condition(@() redis().llen('test_list') == num2str(numel(expected_test_list)));
+            testCase.verifyTrue(all(strcmpi(redis().lrange('test_list', '0', '-1'), expected_test_list)), 'Something went worng')
         end
     end
     
@@ -172,17 +172,17 @@ classdef test_class < matlab.unittest.TestCase
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
             addpath(testCase.mrc_dir)
             try
-                testCase.redis = get_redis_connection('no_cache');
-                if strcmpi(testCase.redis.ping, 'PONG')
+                redis('reconnect');
+                if strcmpi(redis().ping, 'PONG')
                     warning('found redis server before initialization')
                     mrc.set_worker_status('all', 'dead')
-                    testCase.redis.shutdown('NOSAVE');
+                    redis().shutdown('NOSAVE');
                 end
             end
             disp('Start redis server')
             mrc.start_redis_server;
-            testCase.redis = get_redis_connection('no_cache');
-            assert(wait_for_condition(@() strcmpi(testCase.redis.ping, 'pong')), ...
+            redis('reconnect');
+            assert(wait_for_condition(@() strcmpi(redis().ping, 'pong')), ...
                 'could not find redis server after initialization');
             mrc.set_worker_status('all', 'dead')
             mrc.flush_db;
@@ -194,7 +194,7 @@ classdef test_class < matlab.unittest.TestCase
     methods(TestClassTeardown)
         function close_redis(testCase)
             disp('Close redis')
-            testCase.redis.shutdown('NOSAVE');
+            redis().shutdown('NOSAVE');
         end        
     end
     

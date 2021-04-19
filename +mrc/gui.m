@@ -131,7 +131,7 @@ uimenu(context_menus.workers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) set_s
 refresh()
 
     function refresh()
-        redis = get_redis_connection('no_cache');
+        redis('reconnect');
         fig.Name = ['Matlab Redis Cluster, ' datestr(now, 'yyyy-mm-dd HH:MM:SS')];
         category = fig_status.active_filter_button;
         command_list.ContextMenu = context_menus.(category);
@@ -151,7 +151,7 @@ refresh()
         buttons.workers.String = [cluster_status.num_workers ' Workers'];
         
         if strcmp(category, 'workers')
-            worker_keys = redis.smembers('available_workers');
+            worker_keys = redis().smembers('available_workers');
             worker_keys(cellfun(@isempty, worker_keys)) = [];
             if numel(worker_keys) == 0
                 command_list.String = '';
@@ -180,7 +180,7 @@ refresh()
             command_list.UserData.keys = cellfun(@(worker) worker.key, workers(order), 'UniformOutput', false);
             load_more_button.Visible = 'off';
         else
-            tasks = redis.lrange([category '_tasks'], '0', max_items_to_show);
+            tasks = redis().lrange([category '_tasks'], '0', max_items_to_show);
             if numel(tasks) == 1 && isempty(tasks{1})
                 tasks = [];
             end

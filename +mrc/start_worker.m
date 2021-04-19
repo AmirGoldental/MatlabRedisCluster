@@ -1,5 +1,6 @@
 function start_worker(varargin)
-workers_count = get_redis_connection('no_cache').get('workers_count');
+redis('reconnect');
+workers_count = redis().get('workers_count');
 if isempty(workers_count)
     workers_count = 0;
 else

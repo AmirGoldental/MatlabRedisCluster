@@ -40,15 +40,15 @@ if any(strcmpi('dependencies', char_varargin))
 else
     dependencies = {};
 end
-redis = get_redis_connection('no_cache');
+redis('reconnect');
 add_task_script_SHA = script_SHA('add_task');
-redis.multi;
+redis().multi;
 for ind = 1:numel(tasks)
-	redis.evalsha(add_task_script_SHA, '5', str_to_redis_str(task.command), ...
+	redis().evalsha(add_task_script_SHA, '5', str_to_redis_str(task.command), ...
         str_to_redis_str(task.created_by), str_to_redis_str(task.created_on), ...
     	str_to_redis_str(task.path2add), str_to_redis_str(task.fail_policy), dependencies{:});
 end
-task_keys = redis.exec;
+task_keys = redis().exec;
 
 for task_idx = 1:numel(tasks)
     tasks{task_idx}.key = task_keys{task_idx};

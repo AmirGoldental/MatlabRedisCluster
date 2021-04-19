@@ -1,14 +1,14 @@
 function cluster_status = get_cluster_status()
-r = get_redis_connection('no_cache');
-r.multi;
-r.llen('pending_tasks');
-r.llen('ongoing_tasks');
-r.llen('finished_tasks');
-r.llen('failed_tasks');
-r.llen('pre_pending_tasks');
-r.get('tasks_count');
-r.scard('available_workers');
-numeric_stats = r.exec;
+redis('reconnect')
+redis().multi;
+redis().llen('pending_tasks');
+redis().llen('ongoing_tasks');
+redis().llen('finished_tasks');
+redis().llen('failed_tasks');
+redis().llen('pre_pending_tasks');
+redis().get('tasks_count');
+redis().scard('available_workers');
+numeric_stats = redis().exec;
 numeric_stats = cellfun(@redis_str2double, numeric_stats);
 cluster_status.num_pending = numeric_stats(1);
 cluster_status.num_ongoing = numeric_stats(2);
