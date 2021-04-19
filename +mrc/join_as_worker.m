@@ -1,11 +1,13 @@
 function join_as_worker(worker_id)
 db_timetag = get_db_timetag();
+redis = get_redis_connection('no_cache');
+
 worker = struct();
 
 if exist('worker_id', 'var')
     worker_key = ['worker:' worker_id];
 else
-    worker_key = ['worker:' mrc.redis_cmd('incr workers_count')];    
+    worker_key = ['worker:' redis.incr('workers_count')];    
 end
 
 worker.started_on = datetime();
@@ -23,7 +25,7 @@ worker.last_ping = datetime();
 
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
-mrc.redis_cmd(['SADD available_workers ' worker_key]);
+redis.sadd('available_workers', worker_key);
 disp(worker)
 
 clear functions;
@@ -41,22 +43,25 @@ if strcmpi(conf.show_close_figure, 'true')
     worker_fig = worker_figure(worker_key, -1);
 end
 
-get_worker_status = @() mrc.redis_cmd(['HGET ' worker_key ' status']);
-worker_status = get_worker_status();
+redis = get_redis_connection('no_cache');
+worker_status = redis.hget(worker_key, 'status');
 while any(strcmp(worker_status, {'active', 'suspended'}))
+    redis = get_redis_connection('no_cache');
     if strcmp(worker_status, 'suspended')
         disp([char(datetime) ': Worker was suspended'])
         % to activate worker, 'LPUSH worker:n:activate 1'
-        mrc.redis_cmd({['BLPOP ' worker_key ':activate 0'],...
-            ['DEL ' worker_key ':activate'], ...
-            ['HSET ' worker_key ' status active']});
+        redis.multi;
+        redis.blpop([worker_key ':activate'],  '0');
+        redis.del([worker_key ':activate'])
+        redis.hset(worker_key, 'status', 'active');
+        redis.exec;
         disp([char(datetime) ': Worker activated'])
     end
     perform_task(worker_key, db_timetag, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
         worker_fig = worker_figure(worker_key, worker_fig);
     end
-    worker_status = get_worker_status();
+    worker_status = redis.hget(worker_key, 'status');
 end
 if strcmpi(conf.show_close_figure, 'true') && ishandle(worker_fig)
     close(worker_fig)
@@ -82,9 +87,8 @@ function perform_task(worker_key, db_timetag, log_path)
 if ~strcmp(db_timetag, get_db_timetag())
     exit;
 end
-
-redis_cmd = ['EVALSHA ' script_SHA('worker_pop_pendnig_task') '2 ' worker_key ' ' str_to_redis_str(datetime)];
-task_key = mrc.redis_cmd(redis_cmd);
+redis = get_redis_connection;
+task_key = redis.evalsha(script_SHA('worker_pop_pendnig_task'), '2', worker_key, str_to_redis_str(datetime));
 
 if isempty(task_key)
     pause(3)
@@ -124,7 +128,7 @@ end
 
 
 if strcmp(db_timetag, get_db_timetag())
-    mrc.redis_cmd(['HSET ' worker_key ' current_task None']);
+    redis.hset(worker_key, 'current_task',  'None');
 end
 
 diary off

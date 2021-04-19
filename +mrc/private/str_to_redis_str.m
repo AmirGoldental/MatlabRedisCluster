@@ -1,21 +1,10 @@
-function redis_str = str_to_redis_str(str)
-if isstring(str)
-    str = char(str);
-end
+function str = str_to_redis_str(str)
 if isnumeric(str)
     str = num2str(str);
 end
-special = '"\';
-redis_str = '';
-for l = char(str)
-    if ~isempty(find(special == l, 1))
-        redis_str = [redis_str, '\', l];
-    else
-        redis_str = [redis_str, l];
-    end
-end
-redis_str(redis_str == char(13)) = ' ';
-redis_str(redis_str == newline) = ' ';
-redis_str = ['"' redis_str '"'];
+str = char(str);
+str(str == char(13)) = ' ';
+str(str == newline) = ' ';
+% str = ['"' str '"'];
 
 end
