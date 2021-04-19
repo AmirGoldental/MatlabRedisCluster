@@ -50,6 +50,9 @@ call :redis_log watcher initialized
     set worker_status=!res!
     call :send_redis blpop !worker_key!:watcher_cmds %wrapper_loop_wait_seconds%
     set watcher_cmd=!res!
+    if "!watcher_cmd!"=="failed" (
+		set watcher_cmd=none
+	)
 
     call :logger VERBOSE matlab_status:!matlab_status! redis_status:!worker_status! watcher_cmd:!watcher_cmd!
 
