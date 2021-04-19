@@ -1,7 +1,14 @@
 function cluster_status = get_cluster_status()
-numeric_stats = mrc.redis_cmd({'LLEN pending_tasks', ...
-    'LLEN ongoing_tasks', 'LLEN finished_tasks', 'LLEN failed_tasks', ...
-    'LLEN pre_pending_tasks', 'GET tasks_count', 'SCARD available_workers'});
+r = get_redis_connection('no_cache');
+r.multi;
+r.llen('pending_tasks');
+r.llen('ongoing_tasks');
+r.llen('finished_tasks');
+r.llen('failed_tasks');
+r.llen('pre_pending_tasks');
+r.get('tasks_count');
+r.scard('available_workers');
+numeric_stats = r.exec;
 numeric_stats = cellfun(@redis_str2double, numeric_stats);
 cluster_status.num_pending = numeric_stats(1);
 cluster_status.num_ongoing = numeric_stats(2);
@@ -23,6 +30,10 @@ cluster_status.uptime = redis_uptime;
 end
 
 function output = redis_str2double(input)
+    if isempty(input)
+        output = 0;
+        return
+    end
     input = strip(input);
     if isempty(input)
         output = 0;

@@ -1,5 +1,5 @@
 function flush_db()
-mrc.redis_cmd('FLUSHALL');
+get_redis_connection('no_cache').flushall;
 disp(['new DB: ' get_db_timetag()]);
 end
 
