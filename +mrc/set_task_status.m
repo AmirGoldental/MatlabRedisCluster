@@ -123,7 +123,7 @@ switch status
         if strcmpi(task.status, 'ongoing')
             mrc.set_worker_status(task.worker, 'restart')           
         else
-            redis().lrem([task.status '_tasks'], '0', task_key)
+            redis().lrem([task.status '_tasks'], '0', task_key);
         end
     otherwise
         error([status ' status is not supported for tasks']);
