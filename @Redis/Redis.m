@@ -54,8 +54,6 @@ classdef Redis < handle
             end
         end
         
-        response = cmd(obj, varargin)
-        
         function output = append(obj, key, value, varargin)
             % APPEND key value
             % Append a value to a key
@@ -259,13 +257,13 @@ classdef Redis < handle
                 output = obj.cmd('EVAL', script, numkeys, varargin);
             else
                 % Use Redis scripts bank
-                script_sha1 = obj.sha1(script);
-                output = obj.evalsha(script_sha1, numkeys, varargin);
+                script_sha = obj.sha1(script);
+                output = obj.evalsha(script_sha, numkeys, varargin);
                 if strcmp(output, 'NOSCRIPT No matching script. Please use EVAL.')
-                    if ~strcmp(obj.script('load', script), script_sha1)
+                    if ~strcmp(obj.script('load', script), script_sha)
                         error('unexpected sha');
                     end
-                    output = obj.evalsha(script_sha1, numkeys, varargin);
+                    output = obj.evalsha(script_sha, numkeys, varargin);
                 end
             end
         end

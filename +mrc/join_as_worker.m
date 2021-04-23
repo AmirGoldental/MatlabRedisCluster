@@ -87,7 +87,7 @@ function perform_task(worker_key, db_timetag, log_path)
 if ~strcmp(db_timetag, get_db_timetag())
     exit;
 end
-task_key = redis().evalsha(script_SHA('worker_pop_pendnig_task'), '2', worker_key, str_to_redis_str(datetime));
+task_key = lua_script('worker_pop_pendnig_task', 2, worker_key, str_to_redis_str(datetime));
 
 if isempty(task_key)
     pause(3)

@@ -95,9 +95,7 @@ switch status
             return
         end
         task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
-        sha = script_SHA('update_dependent_tasks');
         redis().multi;
-        redis().evalsha(sha, '1', task_key);
         redis().lrem([task.status '_tasks'], '0', task_key);
         redis().lpush('finished_tasks', task_key);
         redis().hmset(task_key, 'finished_on', str_to_redis_str(datetime), 'status', 'finished', ...
@@ -107,10 +105,8 @@ switch status
             redis().hset(task.worker, 'status', 'restart');
         end
         redis().exec;
+        lua_script('update_dependent_tasks', '1', task_key);
     case 'failed'
-        if strcmpi(task.fail_policy, 'continue')
-            redis().evalsha(script_SHA('update_dependent_tasks'), '1', task_key);
-        end        
         task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
         
         redis().multi;
@@ -119,6 +115,9 @@ switch status
         redis().hmset(task_key, 'failed_on', str_to_redis_str(datetime), 'status', 'failed', ...
             'str', str_to_redis_str(task_str));
         redis().exec;
+        if strcmpi(task.fail_policy, 'continue')
+            lua_script('update_dependent_tasks', '1', task_key);
+        end        
     case 'deleted'
         if strcmpi(task.status, 'ongoing')
             mrc.set_worker_status(task.worker, 'restart')           
