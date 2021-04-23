@@ -1,13 +1,13 @@
 function join_as_worker(worker_id)
 db_timetag = get_db_timetag();
-redis('reconnect');
+mrc.redis('reconnect');
 
 worker = struct();
 
 if exist('worker_id', 'var')
     worker_key = ['worker:' worker_id];
 else
-    worker_key = ['worker:' redis().incr('workers_count')];    
+    worker_key = ['worker:' mrc.redis().incr('workers_count')];    
 end
 
 worker.started_on = datetime();
@@ -25,7 +25,7 @@ worker.last_ping = datetime();
 
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
-redis().sadd('available_workers', worker_key);
+mrc.redis().sadd('available_workers', worker_key);
 disp(worker)
 
 clear functions;
@@ -43,25 +43,25 @@ if strcmpi(conf.show_close_figure, 'true')
     worker_fig = worker_figure(worker_key, -1);
 end
 
-redis('reconnect');
-worker_status = redis().hget(worker_key, 'status');
+mrc.redis('reconnect');
+worker_status = mrc.redis().hget(worker_key, 'status');
 while any(strcmp(worker_status, {'active', 'suspended'}))
-    redis('reconnect');
+    mrc.redis('reconnect');
     if strcmp(worker_status, 'suspended')
         disp([char(datetime) ': Worker was suspended'])
         % to activate worker, 'LPUSH worker:n:activate 1'
-        redis().multi;
-        redis().blpop([worker_key ':activate'],  '0');
-        redis().del([worker_key ':activate'])
-        redis().hset(worker_key, 'status', 'active');
-        redis().exec;
+        mrc.redis().multi;
+        mrc.redis().blpop([worker_key ':activate'],  '0');
+        mrc.redis().del([worker_key ':activate'])
+        mrc.redis().hset(worker_key, 'status', 'active');
+        mrc.redis().exec;
         disp([char(datetime) ': Worker activated'])
     end
     perform_task(worker_key, db_timetag, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
         worker_fig = worker_figure(worker_key, worker_fig);
     end
-    worker_status = redis().hget(worker_key, 'status');
+    worker_status = mrc.redis().hget(worker_key, 'status');
 end
 if strcmpi(conf.show_close_figure, 'true') && ishandle(worker_fig)
     close(worker_fig)
@@ -127,7 +127,7 @@ end
 
 
 if strcmp(db_timetag, get_db_timetag())
-    redis().hset(worker_key, 'current_task',  'None');
+    mrc.redis().hset(worker_key, 'current_task',  'None');
 end
 
 diary off

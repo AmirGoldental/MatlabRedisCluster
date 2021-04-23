@@ -36,14 +36,14 @@ if strcmpi(task_key, 'all')
 elseif strcmpi(task_key, 'all_pre_pending')
     switch status
         case 'deleted'            
-            redis().del('pre_pending_tasks');
+            mrc.redis().del('pre_pending_tasks');
         otherwise
             error('not implemented yet')
     end
 elseif strcmpi(task_key, 'all_pending')
     switch status
         case 'deleted'
-            redis().del('pending_tasks');            
+            mrc.redis().del('pending_tasks');            
         otherwise
             error('not implemented yet')
     end
@@ -57,14 +57,14 @@ elseif strcmpi(task_key, 'all_ongoing')
 elseif strcmpi(task_key, 'all_finished')
     switch status
         case 'deleted'
-            redis().del('finished_tasks');
+            mrc.redis().del('finished_tasks');
         otherwise
             error('not implemented yet')
     end
 elseif strcmpi(task_key, 'all_failed')
     switch status
         case 'deleted'
-            redis().del('failed_tasks');
+            mrc.redis().del('failed_tasks');
         otherwise
             error('not implemented yet')
     end
@@ -81,40 +81,40 @@ switch status
         if any(strcmpi(task.status, {'pending', 'ongoing'}))
             return
         end
-        redis().multi;
-        redis().lrem([task.status '_tasks'], '0', task_key);
-        redis().lpush('pending_tasks', task_key);
-        redis().hmset(task_key, 'status', 'pending',  'str',  ['[' task.created_on  '] ' task.command])
+        mrc.redis().multi;
+        mrc.redis().lrem([task.status '_tasks'], '0', task_key);
+        mrc.redis().lpush('pending_tasks', task_key);
+        mrc.redis().hmset(task_key, 'status', 'pending',  'str',  ['[' task.created_on  '] ' task.command])
         if strcmpi(task.status, 'ongoing') && force_flag
-            redis().srem('available_workers', task.worker);
-            redis().hset(task.worker, 'status', 'restart');
+            mrc.redis().srem('available_workers', task.worker);
+            mrc.redis().hset(task.worker, 'status', 'restart');
         end
-        redis().exec;
+        mrc.redis().exec;
     case 'finished'
         if strcmpi(task.status, 'finished')
             return
         end
         task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
-        redis().multi;
-        redis().lrem([task.status '_tasks'], '0', task_key);
-        redis().lpush('finished_tasks', task_key);
-        redis().hmset(task_key, 'finished_on', str_to_redis_str(datetime), 'status', 'finished', ...
+        mrc.redis().multi;
+        mrc.redis().lrem([task.status '_tasks'], '0', task_key);
+        mrc.redis().lpush('finished_tasks', task_key);
+        mrc.redis().hmset(task_key, 'finished_on', str_to_redis_str(datetime), 'status', 'finished', ...
             'str', str_to_redis_str(task_str));
         if strcmpi(task.status, 'ongoing') && force_flag
-            redis().srem('available_workers', task.worker);
-            redis().hset(task.worker, 'status', 'restart');
+            mrc.redis().srem('available_workers', task.worker);
+            mrc.redis().hset(task.worker, 'status', 'restart');
         end
-        redis().exec;
+        mrc.redis().exec;
         lua_script('update_dependent_tasks', '1', task_key);
     case 'failed'
         task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
         
-        redis().multi;
-        redis().lrem([task.status '_tasks'], '0', task_key);
-        redis().lpush('failed_tasks', task_key);
-        redis().hmset(task_key, 'failed_on', str_to_redis_str(datetime), 'status', 'failed', ...
+        mrc.redis().multi;
+        mrc.redis().lrem([task.status '_tasks'], '0', task_key);
+        mrc.redis().lpush('failed_tasks', task_key);
+        mrc.redis().hmset(task_key, 'failed_on', str_to_redis_str(datetime), 'status', 'failed', ...
             'str', str_to_redis_str(task_str));
-        redis().exec;
+        mrc.redis().exec;
         if strcmpi(task.fail_policy, 'continue')
             lua_script('update_dependent_tasks', '1', task_key);
         end        
@@ -122,7 +122,7 @@ switch status
         if strcmpi(task.status, 'ongoing')
             mrc.set_worker_status(task.worker, 'restart')           
         else
-            redis().lrem([task.status '_tasks'], '0', task_key);
+            mrc.redis().lrem([task.status '_tasks'], '0', task_key);
         end
     otherwise
         error([status ' status is not supported for tasks']);

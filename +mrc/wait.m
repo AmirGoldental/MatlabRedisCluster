@@ -10,7 +10,7 @@ for key = keys
     task_status = task.status;
     while ~any(strcmpi(task_status, status_to_continue))
         pause(3)
-        task_status = redis('reconnect').hget(key{1}, 'status');
+        task_status = mrc.redis('reconnect').hget(key{1}, 'status');
     end
 end
 

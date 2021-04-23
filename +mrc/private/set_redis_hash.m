@@ -24,18 +24,18 @@ if isempty(matlab_structs)
    return 
 end
 
-redis().multi;
+mrc.redis().multi;
 for ind = 1:length(redis_keys)
-    redis_set_matlab_struct(redis, redis_keys{ind}, matlab_structs{ind});
+    redis_set_matlab_struct(redis_keys{ind}, matlab_structs{ind});
 end
-redis().exec;
+mrc.redis().exec;
 end
 
 
-function redis_set_matlab_struct(redis, redis_key, matlab_struct)
+function redis_set_matlab_struct(redis_key, matlab_struct)
 args = {};
 for field = fieldnames(matlab_struct)'
     args = [args, field, {str_to_redis_str(matlab_struct.(field{1}))}];
 end
-redis().hmset(redis_key, args{:});
+mrc.redis().hmset(redis_key, args{:});
 end

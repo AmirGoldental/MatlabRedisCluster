@@ -15,18 +15,18 @@ if numel(redis_keys) == 1 && isempty(redis_keys{1})
 end
 
 if ~exist('field_name', 'var')
-    redis().multi;
+    mrc.redis().multi;
     for ind = 1:length(redis_keys)
-       redis().hgetall(redis_keys{ind}); 
+       mrc.redis().hgetall(redis_keys{ind}); 
     end
-    redis_outputs = redis().exec;
+    redis_outputs = mrc.redis().exec;
     redis_structs = cellfun(@(redis_output) redis_output_to_struct(redis_output), redis_outputs, 'UniformOutput', false);
 else
-    redis().multi;
+    mrc.redis().multi;
     for ind = 1:length(redis_keys)
-       redis().hget(redis_keys{ind}, field_name); 
+       mrc.redis().hget(redis_keys{ind}, field_name); 
     end
-    redis_structs = redis().exec;
+    redis_structs = mrc.redis().exec;
 end
 
 if unpack_single_output

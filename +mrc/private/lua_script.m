@@ -20,6 +20,6 @@ else
     lua_script = char(fread(fid)');
     fclose(fid);
 end
-output = redis().eval(lua_script, keys_num, varargin);
+output = mrc.redis().eval(lua_script, keys_num, varargin);
 end
 

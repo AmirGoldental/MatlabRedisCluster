@@ -151,8 +151,8 @@ refresh()
         buttons.workers.String = [cluster_status.num_workers ' Workers'];
         
         if strcmp(category, 'workers')
-            redis('reconnect');
-            worker_keys = redis().smembers('available_workers');
+            mrc.redis('reconnect');
+            worker_keys = mrc.redis().smembers('available_workers');
             worker_keys(cellfun(@isempty, worker_keys)) = [];
             if numel(worker_keys) == 0
                 command_list.String = '';

@@ -18,7 +18,7 @@ end
 worker_key = char(worker_key);
 status = char(status);
 if strcmpi(worker_key, 'all')
-    worker_keys = redis().smembers('available_workers');
+    worker_keys = mrc.redis().smembers('available_workers');
     worker_keys(cellfun(@isempty, worker_keys)) = [];
     if numel(worker_keys) == 0
         disp('No available workers');
@@ -28,26 +28,26 @@ if strcmpi(worker_key, 'all')
     return
 end
 
-current_status = redis().hget(worker_key, 'status');
+current_status = mrc.redis().hget(worker_key, 'status');
 switch status
     case 'active'
         if strcmpi(current_status, 'suspended')
-            redis().srem('available_workers', worker_key);
-            redis().lpush([worker_key ':watcher_cmds'], 'wakeup');
+            mrc.redis().srem('available_workers', worker_key);
+            mrc.redis().lpush([worker_key ':watcher_cmds'], 'wakeup');
         end
     case 'suspended'
         if strcmpi(current_status, 'active')
-            redis().lpush([worker_key ':watcher_cmds'], 'suspend');
+            mrc.redis().lpush([worker_key ':watcher_cmds'], 'suspend');
         end
     case 'restart'        
         if any(strcmpi(current_status, {'active','suspended'}))
-            redis().srem('available_workers', worker_key);
-            redis().lpush([worker_key ':watcher_cmds'], 'restart');
+            mrc.redis().srem('available_workers', worker_key);
+            mrc.redis().lpush([worker_key ':watcher_cmds'], 'restart');
         end
     case 'dead'
         if ~strcmpi(current_status, 'dead')
-            redis().srem('available_workers', worker_key);
-            redis().lpush([worker_key ':watcher_cmds'],  'kill');
+            mrc.redis().srem('available_workers', worker_key);
+            mrc.redis().lpush([worker_key ':watcher_cmds'],  'kill');
         end
     otherwise
         error([status ' status is not supported for workers']);

@@ -177,7 +177,7 @@ classdef test_class < matlab.unittest.TestCase
             testCase.redis_server_dir = fullfile(testCase.main_dir, 'redis_server');
             addpath(testCase.mrc_dir)
             try
-                redis('reconnect');
+                mrc.redis('reconnect');
                 if strcmpi(mrc.redis().ping, 'PONG')
                     warning('found redis server before initialization')
                     mrc.set_worker_status('all', 'dead')
@@ -186,7 +186,7 @@ classdef test_class < matlab.unittest.TestCase
             end
             disp('Start redis server')
             mrc.start_redis_server;
-            redis('reconnect');
+            mrc.redis('reconnect');
             assert(wait_for_condition(@() strcmpi(mrc.redis().ping, 'pong')), ...
                 'could not find redis server after initialization');
             mrc.set_worker_status('all', 'dead')
