@@ -1,0 +1,59 @@
+{
+    "app_name": "MatlabRedisCluster",
+    "description": "Lightweight Matlab distributed computing based on Redis",
+    "hidden": "true",
+    "rank": "21",
+    "type": "Full App",
+    "contributed_by": "Community",
+    "repo_url": "https://github.com/AmirGoldental/MatlabRedisCluster",
+    "download_url": "https://github.com/AmirGoldental/MatlabRedisCluster/archive/refs/heads/main.zip",
+    "hosted_url": "",
+    "language": [
+        "Matlab",
+        "Batch",
+        "lua"
+    ],
+    "redis_commands": [
+        "DEL",
+        "EVAL",
+        "EVALSHA",
+        "EXEC",
+        "EXISTS",
+        "FLUSHDB",
+        "GET",
+        "HGET",
+        "HGETALL",
+        "HMGET",
+        "HSET",
+        "HMSET",
+        "INCR",
+        "LLEN",
+        "LPUSH",
+        "RPUSH",
+        "LRANGE",
+        "BLPOP",
+        "MULTI",
+        "PING",
+        "LPOP",
+        "RPOP",
+        "SCRIPT"
+    ],
+    "redis_features": [
+        "caching"
+    ],
+    "redis_modules": [
+        "RedisTimeseries"
+    ],
+    "app_image_urls": [
+        "https://user-images.githubusercontent.com/50057077/117539282-9c1d5500-b012-11eb-8eb6-46e1788164a4.png",
+        "https://user-images.githubusercontent.com/50057077/112982622-59d83c80-9165-11eb-97e1-ed2957179e03.png"
+    ],
+    "youtube_url": "",
+    "special_tags": [
+        "Hackathon"
+    ],
+    "verticals": [
+        "Technology"
+    ],
+    "markdown": "https://raw.githubusercontent.com/AmirGoldental/MatlabRedisCluster/main/README.md"
+}
