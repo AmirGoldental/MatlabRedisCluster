@@ -15,7 +15,7 @@
 - Start a worker on any computer that is on the same network as the host using the `start_worker.bat`.
 - On any computer that is on the same network add the repository folder to the Matlab path and run 
    ```
-   mrc.new_cmd("disp('hello world')")
+   mrc.new_task("disp('hello world')")
    ```
 
 ## Our terminology
