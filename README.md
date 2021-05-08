@@ -108,5 +108,12 @@ LPUSH finished_tasks <task_key>
 HMSET <task_key> finished_on <datetime> status finished str <task_str>
 EXEC
 ```
-
-There are hundreds of uses of Redis across the project and several abstruction layers.
+When a task is finished it is noted in the time series 
+```
+TS.ADD finished_tasks_Q <time> <task_id>
+```
+Then when we visualize the progress we use   
+```
+TS.RANGE finished_tasks_Q - +
+```
+There are hundreds of uses of Redis across the project and several abstraction layers.
