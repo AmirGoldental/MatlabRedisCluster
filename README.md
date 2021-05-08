@@ -1,6 +1,6 @@
 # MatlabRedisCluster
 ### Lightweight Matlab distributed computing based on Redis.  
-![image](https://user-images.githubusercontent.com/50057077/112987188-1b458080-916b-11eb-97d9-6fe7942718b4.png)
+![image](https://user-images.githubusercontent.com/50057077/117539282-9c1d5500-b012-11eb-8eb6-46e1788164a4.png)
 #### Deploy a cluster of Matlab workers in minutes, without writing a single line of code.  
 
 ## Features
