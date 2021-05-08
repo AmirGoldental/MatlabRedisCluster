@@ -1,3 +1,12 @@
+function plot_tasks()
+figure;
+data = cell2mat(cellfun(@(cell) [str2double(cell{1}), str2double(cell{2})],...
+    mrc.redis().cmd('TS.RANGE', 'finished_tasks_Q', '-', '+')', 'UniformOutput', false));
+times = datetime(data(:,1)/1000, 'ConvertFrom', 'posixtime');
+plot(times, cumsum(data(:,2)>0), 'LineWidth', 3)
+ylabel('Finished Tasks');
+xlabel('Time');
+return
 error('not implemented yet')
 tasks = mrc.get_tasks({[]}, 1:1000, 1000);
 
