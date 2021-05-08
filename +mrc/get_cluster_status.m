@@ -1,5 +1,5 @@
 function cluster_status = get_cluster_status()
-mrc.redis('reconnect')
+mrc.redis('reconnect');
 mrc.redis().multi;
 mrc.redis().llen('pending_tasks');
 mrc.redis().llen('ongoing_tasks');
