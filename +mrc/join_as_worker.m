@@ -31,6 +31,8 @@ disp(worker)
 clear functions;
 clear global;
 restoredefaultpath
+mrc_path = fileparts(fileparts(mfilename('fullpath')));
+addpath(mrc_path);
 fclose all;
 close all;
 
@@ -97,7 +99,8 @@ end
 task = get_redis_hash(task_key);
 
 % Start logging:
-diary(fullfile(log_path, strrep(['DB_' db_timetag '_' task_key '_' worker_key '.txt'], ':', '-')));
+mrc_path = fileparts(fileparts(mfilename('fullpath')));
+diary(fullfile(mrc_path, log_path, strrep(['DB_' db_timetag '_' task_key '_' worker_key '.txt'], ':', '-')));
 
 disp(' --- ')
 disp(task)
@@ -139,6 +142,8 @@ diary off
 clear functions;
 clear global;
 restoredefaultpath
+mrc_path = fileparts(fileparts(mfilename('fullpath')));
+addpath(mrc_path);
 fclose all;
 close all;
 end

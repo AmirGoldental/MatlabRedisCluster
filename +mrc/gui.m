@@ -246,7 +246,8 @@ refresh()
                 new_key_button('Retry', @(~,~) set_selected_tasks_status('pending', key));
                 new_key_button('Retry on this machine', @(~,~) retry_task_on_this_machine(key_struct));
                 
-                log_file_full_path = fullfile(conf.log_path, strrep(['DB_' get_db_timetag() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
+                mrc_path = fileparts(fileparts(mfilename('fullpath')));
+                log_file_full_path = fullfile(mrc_path, conf.log_path, strrep(['DB_' get_db_timetag() '_' char(key_struct.key) '_' char(key_struct.worker) '.txt'], ':', '-'));
                 if exist(log_file_full_path, 'file')
                     new_key_button('Show Log', @(~,~) set(edit_widget, 'String', textread(log_file_full_path, '%[^\n]')));
                 end
