@@ -94,11 +94,13 @@ switch status
         if strcmpi(task.status, 'finished')
             return
         end
-        task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
+        task_duration = num2str(ceil((now - datenum(task.started_on))*24*60));
+        task_str = ['[' char(datetime)  '] (' task.worker '|' task_duration 'm) ' task.command];
         mrc.redis().multi;
         mrc.redis().lrem([task.status '_tasks'], '0', task_key);
         mrc.redis().lpush('finished_tasks', task_key);
-        mrc.redis().hmset(task_key, 'finished_on', str_to_redis_str(datetime), 'status', 'finished', ...
+        mrc.redis().hmset(task_key, 'finished_on', str_to_redis_str(datetime), ...
+            'duration', task_duration, 'status', 'finished', ...
             'str', str_to_redis_str(task_str));
         if strcmpi(task.status, 'ongoing') && force_flag
             mrc.redis().srem('available_workers', task.worker);
@@ -107,12 +109,14 @@ switch status
         mrc.redis().exec;
         lua_script('update_dependent_tasks', '1', task_key);
     case 'failed'
-        task_str = ['[' char(datetime)  '] (' task.worker ') ' task.command];
         
+        task_duration = num2str(ceil((now - datenum(task.started_on))*24*60));
+        task_str = ['[' char(datetime)  '] (' task.worker '|' task_duration 'm) ' task.command];
         mrc.redis().multi;
         mrc.redis().lrem([task.status '_tasks'], '0', task_key);
         mrc.redis().lpush('failed_tasks', task_key);
-        mrc.redis().hmset(task_key, 'failed_on', str_to_redis_str(datetime), 'status', 'failed', ...
+        mrc.redis().hmset(task_key, 'failed_on', str_to_redis_str(datetime), ...
+            'duration', task_duration, 'status', 'failed', ...
             'str', str_to_redis_str(task_str));
         mrc.redis().exec;
         if strcmpi(task.fail_policy, 'continue')

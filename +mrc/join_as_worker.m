@@ -115,10 +115,6 @@ try
     eval(task.command)
     if strcmp(db_timetag, get_db_timetag())
         mrc.set_task_status(task_key, 'finished');
-        try
-            mrc.redis().cmd('TS.ADD', 'finished_tasks_Q', posixtime(datetime)*1000, task.id);
-        catch err
-        end
     end
     disp([newline '   finished_on: ' str_to_redis_str(datetime) ])
 catch err
