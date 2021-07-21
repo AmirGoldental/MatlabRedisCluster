@@ -30,9 +30,7 @@ uimenu(actions_menu, 'Text', 'Clear finished', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Clear failed', ...
     'MenuSelectedFcn', @action);
-uimenu(actions_menu, 'Text', 'Suspend all workers', ...
-    'MenuSelectedFcn', @action);
-uimenu(actions_menu, 'Text', 'Activate all workers', ...
+uimenu(actions_menu, 'Text', 'Kill all workers', ...
     'MenuSelectedFcn', @action);
 uimenu(actions_menu, 'Text', 'Restart all workers', ...
     'MenuSelectedFcn', @action);
@@ -46,10 +44,8 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
                 mrc.set_task_status('all_finished', 'deleted');
             case 'Clear failed'
                 mrc.set_task_status('all_failed', 'deleted');
-            case 'Suspend all workers'
-                mrc.set_worker_status('all', 'suspended');
-            case 'Activate all workers'
-                mrc.set_worker_status('all', 'active');
+            case 'Kill all workers'
+                mrc.set_worker_status('all', 'kill');
             case 'Restart all workers'
                 mrc.set_worker_status('all', 'restart');
             case 'Restart Cluster'

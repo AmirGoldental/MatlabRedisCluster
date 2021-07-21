@@ -30,24 +30,17 @@ end
 
 current_status = mrc.redis().hget(worker_key, 'status');
 switch status
-    case 'active'
-        if strcmpi(current_status, 'suspended')
-            mrc.redis().srem('available_workers', worker_key);
-            mrc.redis().lpush([worker_key ':watcher_cmds'], 'wakeup');
-        end
-    case 'suspended'
-        if strcmpi(current_status, 'active')
-            mrc.redis().lpush([worker_key ':watcher_cmds'], 'suspend');
-        end
     case 'restart'        
-        if any(strcmpi(current_status, {'active','suspended'}))
+        if any(strcmpi(current_status, {'active'}))
             mrc.redis().srem('available_workers', worker_key);
-            mrc.redis().lpush([worker_key ':watcher_cmds'], 'restart');
+            server_key = mrc.redis().hget(worker_key, 'server_key');
+            mrc.redis().lpush([server_key ':cmd'], ['restart ' worker_key]);
         end
     case 'dead'
         if ~strcmpi(current_status, 'dead')
             mrc.redis().srem('available_workers', worker_key);
-            mrc.redis().lpush([worker_key ':watcher_cmds'],  'kill');
+            server_key = mrc.redis().hget(worker_key, 'server_key');
+            mrc.redis().lpush([server_key ':cmd'], ['kill ' worker_key]);
         end
     otherwise
         error([status ' status is not supported for workers']);
