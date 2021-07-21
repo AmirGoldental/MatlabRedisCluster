@@ -10,6 +10,7 @@ end
 worker.started_on = datetime();
 worker.status = 'active';
 worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
+worker.server_key = ['server:' lower(getenv('COMPUTERNAME'))];
 worker.current_task = 'None';
 worker.last_command = 'None';
 worker.pid = feature('getpid');
@@ -18,6 +19,7 @@ worker.last_ping = datetime();
 worker.key = worker_key;
 set_redis_hash(worker_key, worker);
 mrc.redis().sadd('available_workers', worker_key);
+mrc.redis().sadd([worker.server_key ':workers'], worker_key);
 disp(worker)
 
 clear functions;

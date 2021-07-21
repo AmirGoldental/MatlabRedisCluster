@@ -8,6 +8,7 @@ mrc.redis().llen('failed_tasks');
 mrc.redis().llen('pre_pending_tasks');
 mrc.redis().get('tasks_count');
 mrc.redis().scard('available_workers');
+mrc.redis().scard('servers');
 numeric_stats = mrc.redis().exec;
 numeric_stats = cellfun(@redis_str2double, numeric_stats);
 cluster_status.num_pending = numeric_stats(1);
@@ -17,6 +18,7 @@ cluster_status.num_failed = numeric_stats(4);
 cluster_status.num_pre_pending = numeric_stats(5);
 cluster_status.num_tasks = numeric_stats(6);
 cluster_status.num_workers = numeric_stats(7); 
+cluster_status.num_servers = numeric_stats(8); 
 
 redis_uptime = (now - datenum(get_db_timetag(), 'YYYY_mm_dd__HH_MM_SS_FFF'))*24*60;
 if redis_uptime > 60*24

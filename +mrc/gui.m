@@ -67,7 +67,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
 fig_status.active_filter_button = 'pending';
 buttons_num = 0;
     function hndl = new_button(button_string, button_callback)
-        button_length = 0.12;
+        button_length = 0.1;
         button_height = 0.04;
         button_y_ofset = 0.95;
         hndl = uicontrol(fig, 'Style', 'pushbutton', ...
@@ -83,6 +83,7 @@ buttons.ongoing = new_button('Ongoing Tasks', @(~,~) filter_button_callback('ong
 buttons.finished = new_button('Finished Tasks', @(~,~) filter_button_callback('finished'));
 buttons.failed = new_button('Failed Tasks', @(~,~) filter_button_callback('failed'));
 buttons.workers = new_button('Workers', @(~,~) filter_button_callback('workers'));
+buttons.servers = new_button('Servers', @(~,~) filter_button_callback('servers'));
 
 refresh_button = new_button('Refresh', @(~,~) refresh());
 refresh_button_position = refresh_button.Position;
@@ -123,10 +124,15 @@ uimenu(context_menus.finished, 'Text', 'Clear', 'MenuSelectedFcn', @(~,~) set_se
 uimenu(context_menus.finished, 'Text', 'Retry', 'MenuSelectedFcn', @(~,~) set_selected_tasks_status('pending'));
 
 context_menus.workers = uicontextmenu(fig);
-uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('dead'));
-uimenu(context_menus.workers, 'Text', 'Suspend', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('suspended'));
-uimenu(context_menus.workers, 'Text', 'Activate', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('active'));
-uimenu(context_menus.workers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) set_selected_workers_status('restart'));
+uimenu(context_menus.workers, 'Text', 'Kill', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_workers('kill'));
+uimenu(context_menus.workers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_workers('restart'));
+
+context_menus.servers = uicontextmenu(fig);
+uimenu(context_menus.servers, 'Text', 'Shutdown', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('shutdown'));
+uimenu(context_menus.servers, 'Text', 'Kill Workers', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('kill'));
+uimenu(context_menus.servers, 'Text', 'New Worker', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('new'));
+uimenu(context_menus.servers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('restart'));
+
 
 
 refresh()
@@ -149,11 +155,13 @@ refresh()
         buttons.finished.String = [cluster_status.num_finished ' Finished Tasks'];
         buttons.failed.String = [cluster_status.num_failed ' Failed Tasks'];
         buttons.workers.String = [cluster_status.num_workers ' Workers'];
+        buttons.servers.String = [cluster_status.num_servers ' Servers'];
         
         if strcmp(category, 'workers')
             mrc.redis('reconnect');
             worker_keys = mrc.redis().smembers('available_workers');
             worker_keys(cellfun(@isempty, worker_keys)) = [];
+            load_more_button.Visible = 'off';
             if numel(worker_keys) == 0
                 command_list.String = '';
                 command_list.UserData.keys = [];
@@ -179,13 +187,29 @@ refresh()
             [workers_strings, order] = sort(workers_strings);
             command_list.String = workers_strings;
             command_list.UserData.keys = cellfun(@(worker) worker.key, workers(order), 'UniformOutput', false);
+            command_list.UserData.server_keys = cellfun(@(worker) worker.server_key, workers(order), 'UniformOutput', false);
+        elseif strcmp(category, 'servers')
+            server_keys = mrc.redis().smembers('servers');
             load_more_button.Visible = 'off';
+            if numel(server_keys) == 0
+                command_list.String = '';
+                command_list.UserData.keys = [];
+                return
+            end
+            servers = get_redis_hash(server_keys);
+            last_ping_seconds = cellfun(@(server) {24*60*60*(now - datenum(server.last_ping, 'yyyy-mm-ddTHH:MM:SS.FFF'))}, servers);
+            strings = cellfun(@(server, last_ping) ['[' server.key '] ' ...
+                server.status ' last ping - ' num2str(last_ping) ' seconds'], servers, last_ping_seconds, 'UniformOutput', false);
+            
+            
+            [strings, order] = sort(strings);
+            command_list.String = strings;
+            command_list.UserData.keys = cellfun(@(server) server.key, servers(order), 'UniformOutput', false);
         else
             tasks = get_tasks(category);
             command_list.UserData.keys = cellfun(@(task_cell) task_cell{1}, tasks, 'UniformOutput', false);
             command_list.String = cellfun(@(task_cell) task_cell{2}, tasks, 'UniformOutput', false);
         end
-        
     end
 
     function load_tasks()
@@ -277,9 +301,20 @@ refresh()
         refresh;
     end
 
-    function set_selected_workers_status(status)
+    function send_cmd_to_selected_workers(cmd)
         keys = command_list.UserData.keys(command_list.Value);
-        mrc.set_worker_status(keys, status);
+        server_keys = command_list.UserData.server_keys(command_list.Value);
+        for ind = 1:length(keys)
+            mrc.redis().lpush([server_keys{ind} ':cmd'], [cmd ' ' keys{ind}]);
+        end
+        refresh;
+    end
+
+    function send_cmd_to_selected_servers(cmd)
+        keys = command_list.UserData.keys(command_list.Value);
+        for ind = 1:length(keys)
+            mrc.redis().lpush([keys{ind} ':cmd'], cmd);
+        end
         refresh;
     end
 
