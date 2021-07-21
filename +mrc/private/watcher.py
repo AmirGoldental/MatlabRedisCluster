@@ -31,14 +31,14 @@ def bytes2str(b):
 def handle_task_fail(rdb, worker_key, err_msg):
     current_task = bytes2str(rdb.hget(worker_key, 'current_task'))
     if (current_task is not None) and current_task != "None" and len(current_task) > 0:
-        rdb.multi()
-        rdb.hset(current_task, 'failed_on', datetime.now().isoformat())
-        rdb.hset(current_task, 'status', 'failed')
-        rdb.hset(current_task, 'err_msg', err_msg)
-        rdb.lrem('ongoing_tasks', 0, current_task)
-        rdb.lpush('failed_tasks', current_task)
-        rdb.hset(worker_key, 'current_task', "None")
-        rdb.exec()
+        p = rdb.pipeline()
+        p.hset(current_task, 'failed_on', datetime.now().isoformat())
+        p.hset(current_task, 'status', 'failed')
+        p.hset(current_task, 'err_msg', err_msg)
+        p.lrem('ongoing_tasks', 0, current_task)
+        p.lpush('failed_tasks', current_task)
+        p.hset(worker_key, 'current_task', "None")
+        p.execute()
 
 def reset_worker(rdb, worker_key, params):
     worker_id = worker_key.replace('worker:', '')
