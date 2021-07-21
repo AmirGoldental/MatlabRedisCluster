@@ -110,7 +110,7 @@ def perform_command(cmd):
         os.system(f'schtasks /create /SC MINUTE /TN "{service_name}" /TR "{os.path.join(os.getcwd(), "start_server.bat")}"')
         rdb.hset(server_key, 'service_installed', 'true')
     if cmd[0] == 'uninstall_service':
-        os.system(f'schtasks /delete /TN "{service_name}"')
+        os.system(f'schtasks /delete /TN "{service_name}" /f')
         rdb.hset(server_key, 'service_installed', 'false')
     if cmd[0] == 'restart':
         for worker in workers:

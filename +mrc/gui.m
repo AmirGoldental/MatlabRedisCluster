@@ -128,8 +128,9 @@ uimenu(context_menus.servers, 'Text', 'Kill Workers', 'MenuSelectedFcn', @(~,~) 
 uimenu(context_menus.servers, 'Text', 'New Worker', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('new'));
 uimenu(context_menus.servers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('restart'));
 uimenu(context_menus.servers, 'Text', 'Restart server process', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('restart_server'));
-uimenu(context_menus.servers, 'Text', 'Install as service', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('install_service'));
-uimenu(context_menus.servers, 'Text', 'Uninstall service', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('uninstall_service'));
+uimenu(context_menus.servers, 'Text', 'Shutdown server process', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('shutdown'));
+uimenu(context_menus.servers, 'Text', 'Install server process as service', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('install_service'));
+uimenu(context_menus.servers, 'Text', 'Uninstall server process service', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('uninstall_service'));
 
 refresh()
 
