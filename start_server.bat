@@ -1,1 +1,1 @@
-python server.py mrc.conf
+python %~dp0server.py %~dp0mrc.conf
