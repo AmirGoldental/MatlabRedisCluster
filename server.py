@@ -44,7 +44,7 @@ class MrcWorker:
 
     def fail_current_task(self, err_msg='task failed'):
         current_task = bytes2str(rdb.hget(self.key, 'current_task'))
-        if (current_task is None) or current_task == "None" or len(current_task) > 0:
+        if (current_task is None) or (current_task == "None") or (len(current_task) == 0):
             return
 
         logger('INFO', f'fail task {current_task} of worker {self.key}')
@@ -71,11 +71,11 @@ def check_pid(pid):
 def bytes2str(b):
     return b.decode() if isinstance(b, bytes) else b
     
-def start_matlab_worker(worker_key, wait_interval=0.1, timeout=10):
+def start_matlab_worker(worker_key, wait_interval=0.1, timeout=60):
     rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} start new matlab worker')
     subprocess.Popen([params["matlab_path"], '-r', f'mrc.join_as_worker(\'{worker_key}\')'], shell=True)
     counter = 0
-    while rdb.hget(worker_key, 'status') != 'active' or rdb.hget(worker_key, 'pid') is None:
+    while bytes2str(rdb.hget(worker_key, 'status')) != 'active':
         time.sleep(wait_interval)
         counter += wait_interval
         if counter > timeout:
@@ -101,6 +101,9 @@ def perform_command(cmd):
             worker.kill()
         rdb.hset(server_key, 'status', 'dead')
         exit(0x00)
+    if cmd[0] == 'restart_server':
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
     if cmd[0] == 'restart':
         for worker in workers:
             if len(cmd) == 1 or worker.key in cmd[1:]:
@@ -115,12 +118,13 @@ def perform_command(cmd):
             else:
                 alive_workers.append(worker)
         workers = alive_workers
+        rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
     if cmd[0] == 'new':
         n = 1 if len(cmd) == 1 else int(cmd[1])
         counter_key = f'worker:{hostname}:count'
         for i in range(n):
             workers.append(MrcWorker(f'worker:{hostname}:{rdb.incr(counter_key)}'))
-    
+        rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
 
 def server_join():    
     rdb.hset(server_key, 'status', 'active')
@@ -137,6 +141,7 @@ def server_join():
             workers.append(worker)
         else:
             worker.kill()
+    rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
 
 if __name__ == '__main__':
     logger('INFO', f'begin {server_key}')
@@ -170,11 +175,11 @@ if __name__ == '__main__':
             continue
             
         rdb.hset(f'{server_key}', 'last_ping', datetime.now().isoformat())
-
+        
         for worker in workers:
             if worker.isalive():
                 continue
-            logger('INFO', f'worker {worker.key} crashed')
+            logger('VERBOSE', f'worker {worker.key} crashed')
             rdb.hset(worker.key, 'status', 'restart')
             worker.fail_current_task("worker died")
             worker.start()

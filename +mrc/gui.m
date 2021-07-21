@@ -129,6 +129,7 @@ uimenu(context_menus.workers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) send_
 
 context_menus.servers = uicontextmenu(fig);
 uimenu(context_menus.servers, 'Text', 'Shutdown', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('shutdown'));
+uimenu(context_menus.servers, 'Text', 'Restart server process', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('restart_server'));
 uimenu(context_menus.servers, 'Text', 'Kill Workers', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('kill'));
 uimenu(context_menus.servers, 'Text', 'New Worker', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('new'));
 uimenu(context_menus.servers, 'Text', 'Restart', 'MenuSelectedFcn', @(~,~) send_cmd_to_selected_servers('restart'));
@@ -198,8 +199,8 @@ refresh()
             end
             servers = get_redis_hash(server_keys);
             last_ping_seconds = cellfun(@(server) {24*60*60*(now - datenum(server.last_ping, 'yyyy-mm-ddTHH:MM:SS.FFF'))}, servers);
-            strings = cellfun(@(server, last_ping) ['[' server.key '] ' ...
-                server.status ' last ping - ' num2str(last_ping) ' seconds'], servers, last_ping_seconds, 'UniformOutput', false);
+            strings = cellfun(@(server, last_ping) ['[' server.key '] server ' ...
+                server.status  ' has ' server.number_of_workers ' workers, last ping - ' num2str(last_ping) ' seconds'], servers, last_ping_seconds, 'UniformOutput', false);
             
             
             [strings, order] = sort(strings);
