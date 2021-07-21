@@ -1,8 +1,13 @@
-function join_as_worker(worker_id)
+function join_as_worker(worker_id, watcher_flag)
 db_timetag = get_db_timetag();
 mrc.redis('reconnect');
 
 worker = struct();
+if ~exist('watcher_flag', 'var')
+    watcher_flag = true;
+elseif ischar(watcher_flag) || isstring(watcher_flag)
+    watcher_flag = strcmpi(watcher_flag, 'true')
+end
 
 if exist('worker_id', 'var')
     worker_key = ['worker:' worker_id];
@@ -13,14 +18,17 @@ end
 worker.started_on = datetime();
 mrc_dir = fileparts(fileparts(mfilename('fullpath')));
 watcher_path = fullfile('+mrc', 'private', 'watcher.py');
-system(['start "worker_watcher" /D "' mrc_dir ...
-    '" python ' watcher_path  ' worker.conf ' worker_key ' ' ...
-    num2str(feature('getpid'))]);
+if watcher_flag
+    system(['start "worker_watcher" /D "' mrc_dir ...
+        '" python ' watcher_path  ' worker.conf ' worker_key ' ' ...
+        num2str(feature('getpid'))]);
+end
 
 worker.status = 'active';
 worker.computer = [getenv('COMPUTERNAME'), '/', getenv('USERNAME')];
 worker.current_task = 'None';
 worker.last_command = 'None';
+worker.pid = feature('getpid');
 worker.last_ping = datetime();
 
 worker.key = worker_key;

@@ -6,6 +6,7 @@ import signal
 import redis
 import time
 import random
+import subprocess
 
 params_path = 'worker.conf'
 params = dict()
@@ -39,11 +40,19 @@ def handle_task_fail(rdb, worker_key, err_msg):
         rdb.hset(worker_key, 'current_task', "None")
         rdb.exec()
 
-def start_new_worker(rdb, worker_key, params):
+def reset_worker(rdb, worker_key, params):
     worker_id = worker_key.replace('worker:', '')
     rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} start new matlab worker')
     os.system(f'start "{random.randint(1,20000)}_matlab_worker" "{params["matlab_path"]}" -sd "{os.getcwd()}" -r "mrc.join_as_worker(\'{worker_id}\')')
     exit(0x00)   
+    
+def start_matlab_worker(rdb, worker_key, params):
+    worker_id = worker_key.replace('worker:', '')
+    rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} start new matlab worker')
+    matlab_process = subprocess.Popen([params["matlab_path"], '-r', f'mrc.join_as_worker(\'{worker_id}\', \'false\')'], shell=True)
+    while rdb.hget(worker_key, 'status') != 'active' and rdb.hget(worker_key, 'pid') is None:
+        time.sleep(0.1)
+    return int(rdb.hget(worker_key, 'pid'))
 
 def kill_and_handle_fail(rdb, worker_key, matlab_pid, err_msg):    
     logger('INFO', 'kill matlab worker')
@@ -67,7 +76,6 @@ def main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params):
     
     logger('VERBOSE', f'alive {worker_process_alive} status {worker_redis_status} command {watcher_cmd}')
 
-    # revive
     if not worker_process_alive and worker_redis_status == 'active':
         logger('INFO', 'matlab crashed')
         rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} matlab crashed')
@@ -82,12 +90,12 @@ def main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params):
         if worker_process_alive:
             kill_and_handle_fail(rdb, worker_id, matlab_pid, "worker killed")
         rdb.hset(worker_key, 'status', 'dead')
-        start_new_worker(rdb, worker_key, params)
+        reset_worker(rdb, worker_key, params)
     elif watcher_cmd == 'wakeup':
         if worker_process_alive:
             logger('WARNING', 'received wakeup but worker was already active')
         else:
-            start_new_worker(rdb, worker_key, params)
+            reset_worker(rdb, worker_key, params)
     elif watcher_cmd == 'suspend':
         if worker_process_alive:
             rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} suspends matlab worker')
@@ -103,10 +111,6 @@ def main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params):
 
 if __name__ == '__main__':
     params_path = sys.argv[1]
-    worker_key = sys.argv[2]
-    matlab_pid = int(sys.argv[3])
-
-    logger('INFO', f'watcher of {worker_key} started on matlab {matlab_pid}')
 
     params = load_params_file(params_path)
     logger('INFO', f'params loaded from {params_path}')
@@ -115,6 +119,15 @@ if __name__ == '__main__':
     rdb = redis.Redis(params["redis_hostname"], int(params["redis_port"]), password=params["redis_password"])
     mrc_redis_id = rdb.get('db_timetag')    
     logger('DEBUG', f'redis ping result: {rdb.ping()} with redis-id {mrc_redis_id}')
+
+    if len(sys.argv) < 4:
+        worker_key = f"worker:{rdb.incr('workers_count')}"
+        matlab_pid = start_matlab_worker(rdb, worker_key, params)
+    else:
+        worker_key = sys.argv[2]
+        matlab_pid = int(sys.argv[3])
+
+    logger('INFO', f'watcher of {worker_key} started on matlab {matlab_pid}')
 
     logger('INFO', f'initialization done begin main loop')
     while True:
