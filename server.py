@@ -1,6 +1,6 @@
 
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import signal
 import redis
@@ -9,7 +9,8 @@ import random
 import subprocess
 import socket
 
-params_path = 'worker.conf'
+service_name = 'MRC\\MrcServer'
+params_path = 'mrc.conf'
 hostname = socket.gethostname().lower()
 server_key = f'server:{hostname}'
 params = dict()
@@ -102,8 +103,15 @@ def perform_command(cmd):
         rdb.hset(server_key, 'status', 'dead')
         exit(0x00)
     if cmd[0] == 'restart_server':
+        rdb.hset(server_key, 'status', 'starting')
         python = sys.executable
         os.execl(python, python, *sys.argv)
+    if cmd[0] == 'install_service':
+        os.system(f'schtasks /create /SC MINUTE /TN "{service_name}" /TR "{os.path.join(os.getcwd(), "start_server.bat")}"')
+        rdb.hset(server_key, 'service_installed', 'true')
+    if cmd[0] == 'uninstall_service':
+        os.system(f'schtasks /delete /TN "{service_name}"')
+        rdb.hset(server_key, 'service_installed', 'false')
     if cmd[0] == 'restart':
         for worker in workers:
             if len(cmd) == 1 or worker.key in cmd[1:]:
@@ -126,9 +134,16 @@ def perform_command(cmd):
             workers.append(MrcWorker(f'worker:{hostname}:{rdb.incr(counter_key)}'))
         rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
 
+def add_as_service():
+    pass
+
+def remove_from_service():
+    pass
+
 def server_join():    
     rdb.hset(server_key, 'status', 'active')
     rdb.hset(server_key, 'key', server_key)
+    rdb.hset(server_key, 'pid', os.getpid())
     rdb.sadd('servers', server_key)
     workers_keys = rdb.smembers(f'{server_key}:workers')
     for worker_key in workers_keys:
@@ -141,7 +156,31 @@ def server_join():
             workers.append(worker)
         else:
             worker.kill()
-    rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
+    rdb.hset(f'{server_key}', 'number_of_workers', len(workers))    
+    service_installed = os.system(f'schtasks /query /TN "{service_name}"')
+    rdb.hset(server_key, 'service_installed', 'true' if service_installed == 0 else 'false')
+
+
+def is_another_server_alive(wait_interval=1, timeout=60):
+    if bytes2str(rdb.hget(server_key, 'status')) != 'active':
+        return False
+
+    redis_entry_pid = bytes2str(rdb.hget(server_key, 'pid'))
+    if redis_entry_pid is None or int(redis_entry_pid) == os.getpid():
+        return False
+
+    current_datetime = datetime.now()
+    redis_entry_datetime = bytes2str(rdb.hget(server_key, 'last_ping'))
+    if redis_entry_datetime is None or current_datetime - datetime.fromisoformat(redis_entry_datetime) > timedelta(seconds=timeout):
+        return False
+        
+    logger('WARN', f'another server is suspected on the same host wait for resolve (max wait {timeout} seconds)')
+    while datetime.now() > datetime.fromisoformat(redis_entry_datetime):
+        time.sleep(wait_interval)
+        redis_entry_datetime = bytes2str(rdb.hget(server_key, 'last_ping'))
+        if datetime.now() - datetime.fromisoformat(redis_entry_datetime) > timedelta(seconds=timeout):
+            return False
+    return True
 
 if __name__ == '__main__':
     logger('INFO', f'begin {server_key}')
@@ -155,6 +194,11 @@ if __name__ == '__main__':
 
     mrc_redis_id = rdb.get('db_timetag')    
     logger('DEBUG', f'redis ping result: {rdb.ping()} with redis-id {mrc_redis_id}')
+
+    if is_another_server_alive():
+        logger('WARN', f'another server is alive on this host exit')
+        exit(0x00)
+
     server_join()
     logger('INFO', f'initialization done begin event loop')
     while True:        

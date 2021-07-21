@@ -1,1 +1,1 @@
-python server.py worker.conf
+python server.py mrc.conf
