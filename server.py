@@ -15,23 +15,43 @@ server_key = f'server:{hostname}'
 params = dict()
 workers = []
 dbid = ''
+rdb = None
 
 class Worker:
     key = ''
     pid = None
-    status = None    
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, worker_key) -> None:
+        self.key = worker_key
+        self.start()
+
+    def start(self):
+        self.pid = start_matlab_worker(self.key, params)
+        return self
 
     def isalive(self):
         return check_pid(self.pid)
 
     def kill(self):
-        pass
+        logger('INFO', f'kill worker {self.key}')
+        os.kill(self.pid, signal.SIGTERM)
+        return self
 
-    def update(self):
-        pass
+    def fail_current_task(self, err_msg='task failed'):
+        current_task = bytes2str(rdb.hget(self.key, 'current_task'))
+        if (current_task is None) or current_task == "None" or len(current_task) > 0:
+            return
+
+        logger('INFO', f'fail task {current_task} of worker {self.key}')
+        p = rdb.pipeline()
+        p.hset(current_task, 'failed_on', datetime.now().isoformat())
+        p.hset(current_task, 'status', 'failed')
+        p.hset(current_task, 'err_msg', err_msg)
+        p.lrem('ongoing_tasks', 0, current_task)
+        p.lpush('failed_tasks', current_task)
+        p.hset(self.key, 'current_task', "None")
+        p.execute()
+
 
 def logger(level, log):
     print(f'{datetime.now().isoformat()}:[{level}] {log}')
@@ -46,24 +66,6 @@ def check_pid(pid):
 
 def bytes2str(b):
     return b.decode() if isinstance(b, bytes) else b
-
-def handle_task_fail(rdb, worker_key, err_msg):
-    current_task = bytes2str(rdb.hget(worker_key, 'current_task'))
-    if (current_task is not None) and current_task != "None" and len(current_task) > 0:
-        p = rdb.pipeline()
-        p.hset(current_task, 'failed_on', datetime.now().isoformat())
-        p.hset(current_task, 'status', 'failed')
-        p.hset(current_task, 'err_msg', err_msg)
-        p.lrem('ongoing_tasks', 0, current_task)
-        p.lpush('failed_tasks', current_task)
-        p.hset(worker_key, 'current_task', "None")
-        p.execute()
-
-def reset_worker(rdb, worker_key, params):
-    worker_id = worker_key.replace('worker:', '')
-    rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} start new matlab worker')
-    os.system(f'start "{random.randint(1,20000)}_matlab_worker" "{params["matlab_path"]}" -sd "{os.getcwd()}" -r "mrc.join_as_worker(\'{worker_id}\')')
-    exit(0x00)   
     
 def start_matlab_worker(rdb, worker_key, params):
     worker_id = worker_key.replace('worker:', '')
@@ -73,63 +75,39 @@ def start_matlab_worker(rdb, worker_key, params):
         time.sleep(0.1)
     return int(rdb.hget(worker_key, 'pid'))
 
-def kill_and_handle_fail(rdb, worker_key, matlab_pid, err_msg):    
-    logger('INFO', 'kill matlab worker')
-    os.kill(matlab_pid, signal.SIGTERM)
-    handle_task_fail(rdb, worker_key, err_msg)
-
-def main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params):
-    worker_process_alive = check_pid(matlab_pid)
-    try:
-        if not mrc_redis_id == rdb.get('db_timetag'):
-            worker_redis_status = ''
-            watcher_cmd = 'restart'
-        else:
-            worker_redis_status = bytes2str(rdb.hget(worker_key, 'status'))
-            watcher_cmd = bytes2str(rdb.blpop(f'{worker_key}:watcher_cmds', int(params['wrapper_loop_wait_seconds'])))
-            if watcher_cmd is not None and (not isinstance(watcher_cmd, str)) and len(watcher_cmd) > 1:
-                watcher_cmd = bytes2str(watcher_cmd[-1])
-    except redis.exceptions.ConnectionError:
-        logger('WARNING', 'redis could not be reached')
-        time.sleep(1)
-    
-    logger('VERBOSE', f'alive {worker_process_alive} status {worker_redis_status} command {watcher_cmd}')
-
-    if not worker_process_alive and worker_redis_status == 'active':
-        logger('INFO', 'matlab crashed')
-        rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} matlab crashed')
-        rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} change status to dead')
-        rdb.hset(worker_key, 'status', 'dead')
-        handle_task_fail(rdb, worker_key, "worker died")
-        if params['matlab_restart_on_fail'] == "true":
-            watcher_cmd = "restart"
-            rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} change watcher_cmd to restart')
-
-    if watcher_cmd == 'restart':    
-        if worker_process_alive:
-            kill_and_handle_fail(rdb, worker_id, matlab_pid, "worker killed")
-        rdb.hset(worker_key, 'status', 'dead')
-        reset_worker(rdb, worker_key, params)
-    elif watcher_cmd == 'wakeup':
-        if worker_process_alive:
-            logger('WARNING', 'received wakeup but worker was already active')
-        else:
-            reset_worker(rdb, worker_key, params)
-    elif watcher_cmd == 'suspend':
-        if worker_process_alive:
-            rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} suspends matlab worker')
-            kill_and_handle_fail(rdb, worker_id, matlab_pid, "worker suspended")
-        rdb.hset(worker_key, 'status', 'suspended')
-    elif watcher_cmd == 'kill':
-        if worker_process_alive:
-            rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} kill matlab worker')
-            kill_and_handle_fail(rdb, worker_id, matlab_pid, "worker killed")
-        rdb.hset(worker_key, 'status', 'dead')
-        rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} watcher shutdown')
-        exit(0x00)
-
 def perform_command(cmd):
-    pass
+    # restart worker
+    # kill worker
+    # add [n] workers
+    # kill [n] workers
+    # kill all workers
+    # restart all workers
+    # add as schdtask
+    # add as service
+    # shutdown
+    cmd = cmd.split()
+    if cmd[0] == 'shutdown':
+        for worker in workers:
+            worker.fail_current_task('server shutdown')
+            worker.kill()
+        rdb.hset(server_key, 'status', 'dead')
+        exit(0x00)
+    if cmd[0] == 'restart':
+        for worker in workers:
+            if len(cmd) == 1 or worker.key in cmd[1:]:
+                worker.fail_current_task('worker restart')
+                worker.kill().start()
+    if cmd[0] == 'kill':
+        for worker in workers:
+            if len(cmd) == 1 or worker.key in cmd[1:]:
+                worker.fail_current_task('worker restart')
+                worker.kill()
+    if cmd[0] == 'new':
+        n = 1 if len(cmd) == 1 else int(cmd[1])
+        counter_key = f'worker:{hostname}:count'
+        for i in range(n):
+            workers.append(Worker(f'worker:{hostname}:{rdb.incr(counter_key)}'))
+    
 
 if __name__ == '__main__':
     logger('INFO', f'begin {server_key}')
@@ -147,8 +125,8 @@ if __name__ == '__main__':
     while True:        
         try:
             if not mrc_redis_id == rdb.get('db_timetag'):
-                pass
-                # restart all workers?
+                for worker in workers:
+                    worker.kill()
             else:
                 cmd = bytes2str(rdb.blpop(f'{server_key}:cmds', int(params['event_loop_wait_seconds'])))
                 if cmd is not None and (not isinstance(cmd, str)) and len(cmd) > 1:
@@ -159,6 +137,14 @@ if __name__ == '__main__':
             time.sleep(1)
             continue
             
+        alive_workers = []
         for worker in workers:
-            worker.update()
-        
+            if worker.isalive():
+                alive_workers.append(worker)
+                continue
+            logger('INFO', f'worker {worker.key} crashed')
+            rdb.hset(worker.key, 'status', 'dead')
+            worker.fail_current_task("worker died")
+
+        workers = alive_workers
+        logger('INFO', f'current alive workers {len(workers)}')
