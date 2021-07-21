@@ -7,12 +7,31 @@ import redis
 import time
 import random
 import subprocess
+import socket
 
 params_path = 'worker.conf'
+hostname = socket.gethostname()
+server_key = f'server:{hostname}'
 params = dict()
-worker_id = ''
-matlab_pid = ''
+workers = []
 dbid = ''
+
+class Worker:
+    key = ''
+    pid = None
+    status = None    
+
+    def __init__(self) -> None:
+        pass
+
+    def isalive(self):
+        return check_pid(self.pid)
+
+    def kill(self):
+        pass
+
+    def update(self):
+        pass
 
 def logger(level, log):
     print(f'{datetime.now().isoformat()}:[{level}] {log}')
@@ -109,9 +128,13 @@ def main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params):
         rdb.rpush(f'{worker_key}:log', f'{datetime.now().isoformat()} watcher shutdown')
         exit(0x00)
 
-if __name__ == '__main__':
-    params_path = sys.argv[1]
+def perform_command(cmd):
+    pass
 
+if __name__ == '__main__':
+    logger('INFO', f'begin {server_key}')
+
+    params_path = sys.argv[1]
     params = load_params_file(params_path)
     logger('INFO', f'params loaded from {params_path}')
 
@@ -120,15 +143,22 @@ if __name__ == '__main__':
     mrc_redis_id = rdb.get('db_timetag')    
     logger('DEBUG', f'redis ping result: {rdb.ping()} with redis-id {mrc_redis_id}')
 
-    if len(sys.argv) < 4:
-        worker_key = f"worker:{rdb.incr('workers_count')}"
-        matlab_pid = start_matlab_worker(rdb, worker_key, params)
-    else:
-        worker_key = sys.argv[2]
-        matlab_pid = int(sys.argv[3])
-
-    logger('INFO', f'watcher of {worker_key} started on matlab {matlab_pid}')
-
-    logger('INFO', f'initialization done begin main loop')
-    while True:
-        main_logic(rdb, mrc_redis_id, worker_key, matlab_pid, params)
+    logger('INFO', f'initialization done begin event loop')
+    while True:        
+        try:
+            if not mrc_redis_id == rdb.get('db_timetag'):
+                pass
+                # restart all workers?
+            else:
+                cmd = bytes2str(rdb.blpop(f'{server_key}:cmds', int(params['event_loop_wait_seconds'])))
+                if cmd is not None and (not isinstance(cmd, str)) and len(cmd) > 1:
+                    cmd = bytes2str(cmd[-1])
+                    perform_command(cmd)
+        except redis.exceptions.ConnectionError:
+            logger('WARNING', 'redis could not be reached')
+            time.sleep(1)
+            continue
+            
+        for worker in workers:
+            worker.update()
+        
