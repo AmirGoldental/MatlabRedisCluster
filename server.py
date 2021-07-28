@@ -106,12 +106,12 @@ def perform_command(cmd):
         rdb.hset(server_key, 'status', 'starting')
         python = sys.executable
         os.execl(python, python, *sys.argv)
-    if cmd[0] == 'install_service':
-        os.system(f'schtasks /create /SC MINUTE /TN "{service_name}" /TR "{os.path.join(os.getcwd(), "start_server.bat")}"')
-        rdb.hset(server_key, 'service_installed', 'true')
-    if cmd[0] == 'uninstall_service':
-        os.system(f'schtasks /delete /TN "{service_name}" /f')
-        rdb.hset(server_key, 'service_installed', 'false')
+    # if cmd[0] == 'install_service':
+    #     os.system(f'schtasks /create /SC MINUTE /TN "{service_name}" /TR "{os.path.join(os.getcwd(), "start_server.bat")}"')
+    #     rdb.hset(server_key, 'service_installed', 'true')
+    # if cmd[0] == 'uninstall_service':
+    #     os.system(f'schtasks /delete /TN "{service_name}" /f')
+    #     rdb.hset(server_key, 'service_installed', 'false')
     if cmd[0] == 'restart':
         for worker in workers:
             if len(cmd) == 1 or worker.key in cmd[1:]:
@@ -133,12 +133,6 @@ def perform_command(cmd):
         for i in range(n):
             workers.append(MrcWorker(f'worker:{hostname}:{rdb.incr(counter_key)}'))
         rdb.hset(f'{server_key}', 'number_of_workers', len(workers))
-
-def add_as_service():
-    pass
-
-def remove_from_service():
-    pass
 
 def server_join():    
     rdb.hset(server_key, 'status', 'active')
@@ -182,6 +176,11 @@ def is_another_server_alive(wait_interval=1, timeout=60):
             return False
     return True
 
+def get_db_timetag():
+    db_timetag = datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
+    rdb.setnx('db_timetag', db_timetag)
+    return rdb.get('db_timetag')
+
 if __name__ == '__main__':
     logger('INFO', f'begin {server_key}')
 
@@ -192,7 +191,7 @@ if __name__ == '__main__':
     logger('INFO', f'connect to redis at {params["redis_hostname"]}:{params["redis_port"]} with password {params["redis_password"]}')
     rdb = redis.Redis(params["redis_hostname"], int(params["redis_port"]), password=params["redis_password"])
 
-    mrc_redis_id = rdb.get('db_timetag')    
+    mrc_redis_id = get_db_timetag()  
     logger('DEBUG', f'redis ping result: {rdb.ping()} with redis-id {mrc_redis_id}')
 
     if is_another_server_alive():
@@ -203,7 +202,8 @@ if __name__ == '__main__':
     logger('INFO', f'initialization done begin event loop')
     while True:        
         try:
-            if not mrc_redis_id == rdb.get('db_timetag'):
+            if not mrc_redis_id == get_db_timetag():
+                mrc_redis_id = get_db_timetag()
                 for worker in workers:
                     worker.kill()
                 server_join()

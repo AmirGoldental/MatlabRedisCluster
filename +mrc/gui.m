@@ -45,7 +45,7 @@ uimenu(actions_menu, 'Text', 'Restart Cluster', ...
             case 'Clear failed'
                 mrc.set_task_status('all_failed', 'deleted');
             case 'Kill all workers'
-                mrc.set_worker_status('all', 'kill');
+                mrc.set_worker_status('all', 'dead');
             case 'Restart all workers'
                 mrc.set_worker_status('all', 'restart');
             case 'Restart Cluster'

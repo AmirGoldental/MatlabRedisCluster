@@ -41,18 +41,8 @@ end
 
 mrc.redis('reconnect');
 worker_status = mrc.redis().hget(worker_key, 'status');
-while any(strcmp(worker_status, {'active', 'suspended'}))
+while any(strcmp(worker_status, {'active'}))
     mrc.redis('reconnect');
-    if strcmp(worker_status, 'suspended')
-        disp([char(datetime) ': Worker was suspended'])
-        % to activate worker, 'LPUSH worker:n:activate 1'
-        mrc.redis().multi;
-        mrc.redis().blpop([worker_key ':activate'],  '0');
-        mrc.redis().del([worker_key ':activate'])
-        mrc.redis().hset(worker_key, 'status', 'active');
-        mrc.redis().exec;
-        disp([char(datetime) ': Worker activated'])
-    end
     perform_task(worker_key, db_timetag, conf.log_path)    
     if strcmpi(conf.show_close_figure, 'true')
         worker_fig = worker_figure(worker_key, worker_fig);

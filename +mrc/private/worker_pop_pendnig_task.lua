@@ -6,9 +6,8 @@ if redis.call('LLEN', 'pending_tasks') == 0 then
 end;
 local task_key = redis.call('LPOP', 'pending_tasks');
 local task_cmd = redis.call('HGET', task_key, 'command');
-local worker_str = redis.call('HGET', worker_key, 'computer') .. '/' .. worker_key;
 redis.call('RPUSH', 'ongoing_tasks', task_key);
 redis.call('HMSET', task_key, 'status', 'ongoing', 'started_on', time_str,  
-           'worker', worker_str, 'str', '[' .. time_str .. '] (' .. worker_str .. ') ' ..  task_cmd);
+           'worker', worker_key, 'str', '[' .. time_str .. '] (' .. worker_key .. ') ' ..  task_cmd);
 redis.call('HMSET', worker_key, 'current_task', task_key, 'last_command', task_cmd);
 return task_key;
