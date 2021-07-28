@@ -20,7 +20,7 @@ cluster_status.num_tasks = numeric_stats(6);
 cluster_status.num_workers = numeric_stats(7); 
 cluster_status.num_servers = numeric_stats(8); 
 
-redis_uptime = (now - datenum(get_db_timetag(), 'YYYY_mm_dd__HH_MM_SS_FFF'))*24*60;
+redis_uptime = (now - datenum(get_db_timetag(), 'YYYY_mm_dd__HH_MM_SS'))*24*60;
 if redis_uptime > 60*24
     redis_uptime = [num2str(redis_uptime/(60*24), 3) ' d'];
 elseif redis_uptime > 60
