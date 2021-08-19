@@ -40,7 +40,14 @@ class MrcWorker:
     def kill(self):
         logger('INFO', f'kill worker {self.key} with pid {self.pid}')
         rdb.hset(self.key, 'status', 'dead')
-        os.kill(self.pid, signal.SIGTERM)
+        
+        try:
+            os.kill(self.pid, signal.SIGTERM)
+        except:
+            if self.isalive():
+                logger('WARN', f'could not kill the wicked process {pid}', pid)     
+            else:
+                logger('WARN', 'process was already dead')
         return self
 
     def fail_current_task(self, err_msg='task failed'):
